@@ -203,8 +203,12 @@ class AdminController extends Controller
             'backup_enabled'     => 'required|boolean',
             'backup_hour_utc'    => 'required|integer|min:0|max:23',
             'enable_noliae_ai'   => 'required|boolean',
+            'noliae_ai_api_key'  => 'nullable|string|max:200',
             'admin_email'        => 'required|email|max:320',
         ]);
+        if (! empty($data['enable_noliae_ai']) && empty($data['noliae_ai_api_key'])) {
+            return back()->withErrors(['noliae_ai_api_key' => 'Une cle API Noliae est requise pour activer l\'integration IA.']);
+        }
         if ($data['default_quota_mb'] > $data['max_quota_mb']) {
             return back()->withErrors(['default_quota_mb' => 'Le quota par défaut ne peut pas dépasser le maximum.']);
         }

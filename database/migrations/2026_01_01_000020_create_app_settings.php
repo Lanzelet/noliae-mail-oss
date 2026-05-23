@@ -22,6 +22,7 @@ return new class extends Migration
             ['key' => 'default_quota_mb',       'value' => '5120',             'updated_at' => $now], // 5 Go
             ['key' => 'max_quota_mb',           'value' => '51200',            'updated_at' => $now], // 50 Go cap
             ['key' => 'enable_noliae_ai',       'value' => '0',                'updated_at' => $now], // off par défaut
+            ['key' => 'noliae_ai_api_key',      'value' => '',                 'updated_at' => $now], // cle API fournie par Noliae
             ['key' => 'backup_enabled',         'value' => '0',                'updated_at' => $now],
             ['key' => 'backup_hour_utc',        'value' => '0',                'updated_at' => $now],
         ]);

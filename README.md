@@ -31,7 +31,7 @@
 **Prérequis :** un serveur Linux avec docker (compose v2), un domaine que tu contrôles, et les ports `25/80/143/443/465/587/993` ouverts au public. **Idéalement avec un rDNS bien configuré.**
 
 ```bash
-git clone https://github.com/noliae/mail.git
+git clone https://github.com/Noliae/noliae-mail-oss.git
 cd mail
 ./install.sh
 ```
@@ -95,7 +95,7 @@ Le `.env` accepte ces variables (voir `.env.example`) :
 
 ## 🤝 Contribuer
 
-Pull requests bienvenues sur [github.com/noliae/mail](https://github.com/noliae/mail). Le projet suit le style Laravel/Vue 3 standard. Pour les bugs critiques ou questions de sécu : `security@noliae.com`.
+Pull requests bienvenues sur [github.com/Noliae/noliae-mail-oss](https://github.com/Noliae/noliae-mail-oss). Le projet suit le style Laravel/Vue 3 standard. Pour les bugs critiques ou questions de sécu : `security@noliae.com`.
 
 ## 📜 License
 

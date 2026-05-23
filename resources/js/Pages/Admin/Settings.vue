@@ -52,10 +52,22 @@
           Branche le webmail sur l'IA hébergée par Noliae (smart-reply, traduction, résumé, anti-phishing).
           Désactivé par défaut : ton serveur reste 100% souverain. Activer envoie le contenu des mails à Noliae IA.
         </p>
-        <label class="flex items-center gap-3 cursor-pointer">
+        <label class="flex items-center gap-3 cursor-pointer mb-4">
           <input v-model="form.enable_noliae_ai" type="checkbox" class="w-5 h-5 accent-[#FF4D2E]" />
           <span class="text-sm">Activer l'intégration IA Noliae</span>
         </label>
+        <div v-if="form.enable_noliae_ai" class="border-t border-gray-200 dark:border-zinc-700 pt-4 mt-2">
+          <label class="block">
+            <span class="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">Clé API Noliae</span>
+            <input v-model="form.noliae_ai_api_key" type="password" autocomplete="off"
+                   placeholder="nl_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                   class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 rounded-lg text-sm font-mono focus:outline-none focus:border-[#FF4D2E]" />
+            <p class="text-[11px] text-gray-500 mt-1.5">
+              Obtiens ta clé sur <a href="https://account.noliae.com/api-keys" target="_blank" class="text-[#FF4D2E] underline">account.noliae.com/api-keys</a> (compte Noliae requis). La clé est stockée chiffrée dans ta base.
+            </p>
+            <p v-if="errors.noliae_ai_api_key" class="text-rose-600 text-xs mt-1">{{ errors.noliae_ai_api_key }}</p>
+          </label>
+        </div>
       </div>
 
       <!-- Compte admin -->
@@ -82,7 +94,9 @@
 <script setup>
 import AdminLayout from './Layout.vue';
 import { reactive, ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+const errors = computed(() => usePage().props.errors || {});
 const props = defineProps({ settings: Object, app_domain: String, admin_email: String });
 const form = reactive({
   allow_registration: props.settings.allow_registration === '1',
@@ -91,6 +105,7 @@ const form = reactive({
   backup_enabled:     props.settings.backup_enabled === '1',
   backup_hour_utc:    parseInt(props.settings.backup_hour_utc || 0),
   enable_noliae_ai:   props.settings.enable_noliae_ai === '1',
+  noliae_ai_api_key:  props.settings.noliae_ai_api_key || '',
   admin_email:        props.admin_email,
 });
 const processing = ref(false);

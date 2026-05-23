@@ -80,8 +80,8 @@
       </form>
     </div>
     <p class="text-gray-600 text-xs mt-6">Noliae Mail — messagerie souveraine, open source</p>
-    <a href="https://github.com/noliae/mail" target="_blank" rel="noopener"
-       class="text-gray-700 text-[11px] mt-1 hover:text-gray-500">github.com/noliae/mail</a>
+    <a href="https://github.com/Noliae/noliae-mail-oss" target="_blank" rel="noopener"
+       class="text-gray-700 text-[11px] mt-1 hover:text-gray-500">github.com/Noliae/noliae-mail-oss</a>
   </div>
 </template>
 
