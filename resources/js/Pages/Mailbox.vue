@@ -479,7 +479,7 @@
           </div>
           <!-- ⚠️ Phishing warning -->
           <Transition name="panel-down">
-            <div v-if="phishingRisk && phishingRisk !== 'low'" class="mt-3 p-3 rounded-xl border-2"
+            <div v-if="props.enable_noliae_ai && phishingRisk && phishingRisk !== 'low'" class="mt-3 p-3 rounded-xl border-2"
                  :class="phishingRisk === 'high' ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-amber-50 border-amber-300 text-amber-900'">
               <div class="flex items-start gap-2">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="shrink-0 mt-0.5"><path :d="iconPath('spam')"/></svg>
@@ -492,8 +492,8 @@
             </div>
           </Transition>
 
-          <!-- Mini-actions IA -->
-          <div v-if="!isPgp" class="mt-3 flex flex-wrap gap-1.5">
+          <!-- Mini-actions IA (visibles uniquement si IA Noliae activée) -->
+          <div v-if="props.enable_noliae_ai && !isPgp" class="mt-3 flex flex-wrap gap-1.5">
             <button @click="aiTranslate" :disabled="aiBusy.translate"
               class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 disabled:opacity-40">
               ✨ {{ aiBusy.translate ? '…' : (aiTranslated ? 'Original' : 'Traduire FR') }}
@@ -503,10 +503,10 @@
               ✨ {{ aiBusy.summarize ? '…' : (aiSummary ? 'Original' : 'Résumer') }}
             </button>
           </div>
-          <div v-if="aiSummary" class="mt-2 p-3 rounded-xl bg-violet-50/50 border border-violet-200 text-sm whitespace-pre-line">{{ aiSummary }}</div>
+          <div v-if="props.enable_noliae_ai && aiSummary" class="mt-2 p-3 rounded-xl bg-violet-50/50 border border-violet-200 text-sm whitespace-pre-line">{{ aiSummary }}</div>
 
           <!-- Smart Reply IA -->
-          <div v-if="smartReplies.length && !isPgp" class="mt-3 flex flex-wrap gap-1.5">
+          <div v-if="props.enable_noliae_ai && smartReplies.length && !isPgp" class="mt-3 flex flex-wrap gap-1.5">
             <button v-for="r in smartReplies" :key="r" @click="useSmartReply(r)"
               class="px-3 py-1.5 rounded-full text-[12px] font-bold border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition">
               ✨ {{ r }}
@@ -723,8 +723,8 @@
           </div>
         </div>
 
-        <!-- Barre IA Noliae -->
-        <div class="px-4 sm:px-5 pt-3 pb-1">
+        <!-- Barre IA Noliae (visible uniquement si activée par l'admin dans Paramètres) -->
+        <div v-if="props.enable_noliae_ai" class="px-4 sm:px-5 pt-3 pb-1">
           <div v-if="!aiPanelOpen" class="flex items-center justify-between gap-3">
             <button @click="openAi" type="button"
               class="ai-btn group flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold
@@ -1380,6 +1380,7 @@ const props = defineProps({
   total: { type: Number, default: 0 },
   search: { type: String, default: '' },
   error: String,
+  enable_noliae_ai: { type: Boolean, default: false },
 });
 
 const inputCls = 'w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm '
@@ -2551,6 +2552,7 @@ const smartReplies = ref([]);
 const smartLoading = ref(false);
 async function fetchSmartReplies() {
   smartReplies.value = []; smartLoading.value = false;
+  if (!props.enable_noliae_ai) return;
   if (!props.selected || isPgp.value) return;
   const text = props.selected.text || (props.selected.html || '').replace(/<[^>]+>/g, ' ').slice(0, 4000);
   if (!text || text.length < 20) return;

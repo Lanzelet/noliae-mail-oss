@@ -71,6 +71,9 @@ class MailController extends Controller
             'selected' => $selected,
             'quota'    => $quota,
             'error'    => $error,
+            // Affichage des fonctions IA dans le webmail UNIQUEMENT si activées
+            // côté admin dans /admin/settings (off par défaut).
+            'enable_noliae_ai' => \App\Services\AppSettings::bool('enable_noliae_ai', false),
         ]);
     }
 
