@@ -2,20 +2,27 @@ version: 2
 updates:
   - package-ecosystem: composer
     directory: /
-    schedule: { interval: weekly, day: monday }
-    open-pull-requests-limit: 5
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 3
     labels: [dependencies, php]
+    groups:
+      php-minor:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: laravel/framework
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: npm
     directory: /
-    schedule: { interval: weekly, day: monday }
-    open-pull-requests-limit: 5
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 3
     labels: [dependencies, javascript]
+    groups:
+      js-minor:
+        update-types: [minor, patch]
     ignore:
-      # Tailwind 4 = rewrite majeur, migration manuelle
       - dependency-name: tailwindcss
         update-types: [version-update:semver-major]
-      # Inertia/Vite 7 = rupture potentielle, suivi manuel
       - dependency-name: "@inertiajs/vue3"
         update-types: [version-update:semver-major]
       - dependency-name: vite
@@ -24,28 +31,16 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+    open-pull-requests-limit: 1
     labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ["*"]
 
   - package-ecosystem: docker
     directory: /docker/web
     schedule: { interval: monthly }
     labels: [dependencies, docker]
     ignore:
-      # PHP majeur = revue manuelle + tests deps
       - dependency-name: php
         update-types: [version-update:semver-major, version-update:semver-minor]
-
-  - package-ecosystem: docker
-    directory: /docker/postfix
-    schedule: { interval: monthly }
-    labels: [dependencies, docker]
-
-  - package-ecosystem: docker
-    directory: /docker/dovecot
-    schedule: { interval: monthly }
-    labels: [dependencies, docker]
-
-  - package-ecosystem: docker
-    directory: /docker/rspamd
-    schedule: { interval: monthly }
-    labels: [dependencies, docker]

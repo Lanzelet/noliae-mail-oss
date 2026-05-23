@@ -18,10 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - { name: web,     context: ., dockerfile: docker/web/Dockerfile }
-          - { name: postfix, context: docker/postfix, dockerfile: Dockerfile }
-          - { name: dovecot, context: docker/dovecot, dockerfile: Dockerfile }
-          - { name: rspamd,  context: docker/rspamd,  dockerfile: Dockerfile }
+          - { name: web, context: ., dockerfile: docker/web/Dockerfile }
+          # TODO : images postfix/dovecot/rspamd à valider end-to-end avant publication
+          # (configs éprouvées en prod 149, mais Dockerfiles OSS pas encore testés
+          # en stack docker-compose autonome). Réactiver une fois les smoke tests verts.
     steps:
       - uses: actions/checkout@v6
 
