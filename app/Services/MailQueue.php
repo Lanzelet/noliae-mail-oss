@@ -34,6 +34,22 @@ class MailQueue
     /** Publie un job dans une file (par défaut la file d'envoi mail). */
     public function publish(array $payload, string $queue = self::QUEUE): void
     {
+        // OSS : si MAIL_DELIVERY_MODE=sync (ou pas de RABBITMQ_URL configure),
+        // on envoie directement via SendService au lieu de mettre en file.
+        // Cas d'usage : stack OSS minimale sans worker RabbitMQ.
+        $mode = strtolower((string) env('MAIL_DELIVERY_MODE', env('RABBITMQ_URL') ? 'queue' : 'sync'));
+        if ($mode === 'sync' && $queue === self::QUEUE) {
+            $svc = app(SendService::class);
+            $svc->send(
+                $payload['from']      ?? '',
+                $payload['to']        ?? [],
+                $payload['subject']   ?? '',
+                $payload['html']      ?? '',
+                $payload,
+            );
+            return;
+        }
+
         $conn = $this->connection();
         $ch   = $conn->channel();
         $ch->queue_declare($queue, false, true, false, false);
