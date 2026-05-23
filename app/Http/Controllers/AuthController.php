@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AppSettings;
 use App\Services\MailboxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,7 @@ class AuthController extends Controller
             return redirect('/webmail');
         }
         return Inertia::render('Login', [
-            'allowRegister' => (bool) env('ALLOW_REGISTRATION', true),
+            'allowRegister' => AppSettings::bool('allow_registration', false),
             'domain'        => config('mail.primary_domain'),
         ]);
     }
@@ -37,7 +38,7 @@ class AuthController extends Controller
 
     public function showRegister(Request $request)
     {
-        if (! env('ALLOW_REGISTRATION', true)) abort(403, 'Registration disabled');
+        if (! AppSettings::bool('allow_registration', false)) abort(403, 'Inscriptions désactivées par l\'administrateur.');
         return Inertia::render('Login', [
             'allowRegister' => true,
             'registerMode'  => true,
@@ -66,7 +67,7 @@ class AuthController extends Controller
     /** POST /register — crée un compte sur le domaine principal. */
     public function register(Request $request)
     {
-        if (! env('ALLOW_REGISTRATION', true)) abort(403, 'Registration disabled');
+        if (! AppSettings::bool('allow_registration', false)) abort(403, 'Inscriptions désactivées par l\'administrateur.');
         $domain = config('mail.primary_domain');
         $data = $request->validate([
             'local'    => 'required|string|max:64|regex:/^[a-z0-9][a-z0-9._-]{1,63}$/i',
@@ -93,7 +94,7 @@ class AuthController extends Controller
             'email'        => $email,
             'password'     => $hash,
             'display_name' => $data['display_name'] ?? null,
-            'quota_bytes'  => config('mail.quota_bytes'),
+            'quota_bytes'  => AppSettings::int('default_quota_mb', 5120) * 1024 * 1024,
             'maildir'      => $domain . '/' . strtolower($data['local']) . '/',
             'active'       => true,
             'created_at'   => now(),

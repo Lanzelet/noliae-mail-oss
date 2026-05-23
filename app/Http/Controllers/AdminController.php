@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Services\AppSettings;
 use Inertia\Inertia;
 
 /**
@@ -25,7 +26,7 @@ class AdminController extends Controller
     private function authorize_admin(Request $request): void
     {
         $user = strtolower((string) $request->session()->get('mail_user', ''));
-        $admin = strtolower((string) env('ADMIN_EMAIL', ''));
+        $admin = strtolower((string) AppSettings::get('admin_email', env('ADMIN_EMAIL', '')));
         abort_unless($user && $admin && $user === $admin, 403, 'Accès admin réservé.');
     }
 
@@ -42,7 +43,7 @@ class AdminController extends Controller
             'recent' => DB::table('mail_accounts')
                 ->orderByDesc('created_at')->limit(10)
                 ->get(['id','email','display_name','active','created_at'])->toArray(),
-            'admin_email' => env('ADMIN_EMAIL'),
+            'admin_email' => AppSettings::get('admin_email', env('ADMIN_EMAIL')),
             'app_domain'  => config('mail.primary_domain'),
         ]);
     }
@@ -113,7 +114,7 @@ class AdminController extends Controller
             'domain_id'    => 'required|integer|exists:mail_domains,id',
             'password'     => 'required|string|min:10|max:200',
             'display_name' => 'nullable|string|max:120',
-            'quota_mb'     => 'nullable|integer|min:10|max:102400',
+            'quota_mb'     => 'nullable|integer|min:10|max:' . AppSettings::int('max_quota_mb', 51200),
         ]);
         $dom = DB::table('mail_domains')->where('id', $data['domain_id'])->first();
         $email = strtolower($data['local']) . '@' . $dom->name;
@@ -126,7 +127,7 @@ class AdminController extends Controller
             'email'        => $email,
             'password'     => $hash,
             'display_name' => $data['display_name'] ?? null,
-            'quota_bytes'  => ($data['quota_mb'] ?? 5120) * 1024 * 1024,
+            'quota_bytes'  => ($data['quota_mb'] ?? AppSettings::int('default_quota_mb', 5120)) * 1024 * 1024,
             'maildir'      => $dom->name . '/' . strtolower($data['local']) . '/',
             'active'       => true,
             'created_at'   => now(),
@@ -182,4 +183,35 @@ class AdminController extends Controller
             'dkim_pub'  => $dkimPub,
         ]);
     }
+    public function settings(Request $request)
+    {
+        $this->authorize_admin($request);
+        return Inertia::render('Admin/Settings', [
+            'settings'    => AppSettings::all(),
+            'app_domain'  => config('mail.primary_domain'),
+            'admin_email' => AppSettings::get('admin_email', env('ADMIN_EMAIL')),
+        ]);
+    }
+
+    public function saveSettings(Request $request)
+    {
+        $this->authorize_admin($request);
+        $data = $request->validate([
+            'allow_registration' => 'required|boolean',
+            'default_quota_mb'   => 'required|integer|min:10',
+            'max_quota_mb'       => 'required|integer|min:100',
+            'backup_enabled'     => 'required|boolean',
+            'backup_hour_utc'    => 'required|integer|min:0|max:23',
+            'enable_noliae_ai'   => 'required|boolean',
+            'admin_email'        => 'required|email|max:320',
+        ]);
+        if ($data['default_quota_mb'] > $data['max_quota_mb']) {
+            return back()->withErrors(['default_quota_mb' => 'Le quota par défaut ne peut pas dépasser le maximum.']);
+        }
+        foreach ($data as $key => $value) {
+            AppSettings::set($key, is_bool($value) ? ($value ? '1' : '0') : (string) $value);
+        }
+        return back()->with('success', 'Paramètres enregistrés.');
+    }
+
 }

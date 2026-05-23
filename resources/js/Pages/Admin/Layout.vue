@@ -37,6 +37,7 @@ const tabs = [
   { label: 'Tableau de bord', href: '/admin' },
   { label: 'Domaines',        href: '/admin/domains' },
   { label: 'Comptes',         href: '/admin/accounts' },
+  { label: 'Paramètres',      href: '/admin/settings' },
 ];
 const flash = computed(() => usePage().props.flash);
 function isActive(h) { const u = usePage().url; return h === '/admin' ? u === '/admin' : u.startsWith(h); }
