@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build changelog
+        id: changelog
+        run: |
+          PREV=$(git tag --sort=-v:refname | sed -n 2p)
+          if [ -n "$PREV" ]; then
+            echo "## Changements depuis $PREV" > NOTES.md
+            git log $PREV..HEAD --pretty=format:'- %s (%h)' >> NOTES.md
+          else
+            echo "## Première release" > NOTES.md
+            git log --pretty=format:'- %s (%h)' >> NOTES.md
+          fi
+          echo "" >> NOTES.md
+          echo "" >> NOTES.md
+          echo "### Installation" >> NOTES.md
+          echo '```bash' >> NOTES.md
+          echo "git clone https://github.com/${{ github.repository }}.git" >> NOTES.md
+          echo "cd noliae-mail-oss" >> NOTES.md
+          echo "./install.sh" >> NOTES.md
+          echo "docker compose up -d" >> NOTES.md
+          echo '```' >> NOTES.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Noliae Mail OSS ${{ github.ref_name }}"
+          body_path: NOTES.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
