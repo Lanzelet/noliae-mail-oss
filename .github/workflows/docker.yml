@@ -23,7 +23,7 @@ jobs:
           - { name: dovecot, context: docker/dovecot, dockerfile: Dockerfile }
           - { name: rspamd,  context: docker/rspamd,  dockerfile: Dockerfile }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup QEMU (multi-arch)
         uses: docker/setup-qemu-action@v3

@@ -23,7 +23,7 @@ jobs:
         # PHP n'est pas supporté nativement par CodeQL — on scanne uniquement le JS du webmail.
         language: [javascript-typescript]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
