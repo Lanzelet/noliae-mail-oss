@@ -11,6 +11,15 @@ updates:
     schedule: { interval: weekly, day: monday }
     open-pull-requests-limit: 5
     labels: [dependencies, javascript]
+    ignore:
+      # Tailwind 4 = rewrite majeur, migration manuelle
+      - dependency-name: tailwindcss
+        update-types: [version-update:semver-major]
+      # Inertia/Vite 7 = rupture potentielle, suivi manuel
+      - dependency-name: "@inertiajs/vue3"
+        update-types: [version-update:semver-major]
+      - dependency-name: vite
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
@@ -21,6 +30,10 @@ updates:
     directory: /docker/web
     schedule: { interval: monthly }
     labels: [dependencies, docker]
+    ignore:
+      # PHP majeur = revue manuelle + tests deps
+      - dependency-name: php
+        update-types: [version-update:semver-major, version-update:semver-minor]
 
   - package-ecosystem: docker
     directory: /docker/postfix
