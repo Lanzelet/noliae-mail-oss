@@ -49,7 +49,10 @@ COPY package.json package-lock.json vite.config.js postcss.config.js tailwind.co
 RUN npm ci --no-audit --no-fund
 
 COPY . .
-RUN composer dump-autoload --optimize --no-dev \
+# bootstrap/cache et storage/framework/{cache,sessions,views} sont gitignored,
+# absents d'un clone frais → on les crée sinon package:discover plante.
+RUN mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs \
+ && composer dump-autoload --optimize --no-dev \
  && npm run build \
  && rm -rf node_modules /root/.composer \
  && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
