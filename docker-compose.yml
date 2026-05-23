@@ -1,0 +1,218 @@
+# Noliae Mail OSS — stack tout-en-un.
+# Tout est containerisé : webmail + Postfix + Dovecot + rspamd + Postgres + Redis + MinIO (+ Traefik).
+#
+# Usage :
+#   1. Copier .env.example en .env et remplir MAIL_DOMAIN, ADMIN_EMAIL, etc.
+#   2. ./install.sh       (génère DKIM, crée le compte admin, affiche les records DNS)
+#   3. docker compose up -d
+#
+# Pré-requis : ports 25/465/587/993/143/80/443 ouverts au public sur le host.
+services:
+
+  ##########################
+  # 1. WEBMAIL (Laravel/Vue)
+  ##########################
+  web:
+    build: ./docker/web
+    image: ghcr.io/noliae/mail-web:latest
+    restart: unless-stopped
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_started } }
+    env_file: [.env]
+    environment:
+      APP_URL: https://${MAIL_DOMAIN}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_NAME:-noliaemail}
+      DB_USERNAME: ${DB_USER:-noliae}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      MAIL_IMAP_HOST: dovecot
+      MAIL_IMAP_PORT: 143
+      MAIL_IMAP_ENCRYPTION: starttls
+      MAIL_SMTP_HOST: postfix
+      MAIL_SMTP_PORT: 25
+      MAIL_MASTER_USER: ${MAIL_MASTER_USER:-masteruser}
+      MAIL_MASTER_PASS: ${MAIL_MASTER_PASS}
+      MAIL_DOMAIN: ${MAIL_DOMAIN}
+      MAIL_QUOTA_BYTES: ${MAIL_QUOTA_BYTES:-5368709120}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-noliae}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_BUCKET: attachments
+      AWS_ENDPOINT: http://minio:9000
+      AWS_USE_PATH_STYLE_ENDPOINT: true
+      SESSION_DRIVER: database
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+    volumes:
+      - web-storage:/var/www/html/storage
+    networks: [intnet]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mail.rule=Host(`${MAIL_DOMAIN}`)
+      - traefik.http.routers.mail.entrypoints=websecure
+      - traefik.http.routers.mail.tls.certresolver=le
+      - traefik.http.services.mail.loadbalancer.server.port=80
+
+  ##########################
+  # 2. POSTGRES
+  ##########################
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-noliaemail}
+      POSTGRES_USER: ${DB_USER:-noliae}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-noliae}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [intnet]
+
+  ##########################
+  # 3. REDIS
+  ##########################
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis-data:/data]
+    networks: [intnet]
+
+  ##########################
+  # 4. MINIO (S3 pour pièces jointes)
+  ##########################
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-noliae}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes: [minio-data:/data]
+    networks: [intnet]
+
+  # Crée le bucket "attachments" au démarrage
+  minio-init:
+    image: minio/mc:latest
+    depends_on: [minio]
+    entrypoint: >
+      sh -c "until mc alias set m http://minio:9000 ${MINIO_ROOT_USER:-noliae} ${MINIO_ROOT_PASSWORD}; do sleep 1; done;
+             mc mb --ignore-existing m/attachments &&
+             mc anonymous set none m/attachments"
+    networks: [intnet]
+    restart: "no"
+
+  ##########################
+  # 5. POSTFIX (MTA)
+  ##########################
+  postfix:
+    build: ./docker/postfix
+    image: ghcr.io/noliae/mail-postfix:latest
+    restart: unless-stopped
+    hostname: ${MAIL_DOMAIN}
+    depends_on: [postgres, rspamd]
+    env_file: [.env]
+    environment:
+      MAIL_DOMAIN: ${MAIL_DOMAIN}
+      DB_HOST: postgres
+      DB_NAME: ${DB_NAME:-noliaemail}
+      DB_USER: ${DB_USER:-noliae}
+      DB_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "25:25"      # MX entrant + relay
+      - "465:465"    # Submissions (SMTPS)
+      - "587:587"    # Submission (STARTTLS)
+    volumes:
+      - postfix-data:/var/spool/postfix
+      - postfix-tls:/etc/letsencrypt
+    networks: [intnet]
+
+  ##########################
+  # 6. DOVECOT (IMAP/LMTP + Sieve)
+  ##########################
+  dovecot:
+    build: ./docker/dovecot
+    image: ghcr.io/noliae/mail-dovecot:latest
+    restart: unless-stopped
+    hostname: ${MAIL_DOMAIN}
+    depends_on: [postgres]
+    env_file: [.env]
+    environment:
+      MAIL_DOMAIN: ${MAIL_DOMAIN}
+      DB_HOST: postgres
+      DB_NAME: ${DB_NAME:-noliaemail}
+      DB_USER: ${DB_USER:-noliae}
+      DB_PASSWORD: ${DB_PASSWORD}
+      MAIL_MASTER_USER: ${MAIL_MASTER_USER:-masteruser}
+      MAIL_MASTER_PASS: ${MAIL_MASTER_PASS}
+    ports:
+      - "143:143"    # IMAP STARTTLS
+      - "993:993"    # IMAPS
+    volumes:
+      - vmail:/var/vmail
+      - dovecot-tls:/etc/letsencrypt
+    networks: [intnet]
+
+  ##########################
+  # 7. RSPAMD (antispam + DKIM signing)
+  ##########################
+  rspamd:
+    build: ./docker/rspamd
+    image: ghcr.io/noliae/mail-rspamd:latest
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      MAIL_DOMAIN: ${MAIL_DOMAIN}
+    volumes:
+      - rspamd-data:/var/lib/rspamd
+      - rspamd-dkim:/etc/rspamd/dkim
+    networks: [intnet]
+
+  ##########################
+  # 8. TRAEFIK (HTTPS via Let's Encrypt)
+  ##########################
+  traefik:
+    image: traefik:v3.2
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.email=${ADMIN_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/acme/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-acme:/acme
+    networks: [intnet]
+
+networks:
+  intnet:
+    driver: bridge
+
+volumes:
+  pg-data:
+  redis-data:
+  minio-data:
+  postfix-data:
+  postfix-tls:
+  vmail:
+  dovecot-tls:
+  rspamd-data:
+  rspamd-dkim:
+  traefik-acme:
+  web-storage:

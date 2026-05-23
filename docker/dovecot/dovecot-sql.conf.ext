@@ -1,0 +1,6 @@
+driver = pgsql
+connect = host=${DB_HOST} port=7766 dbname=${DB_NAME} user=${DB_USER} password=${DB_PASSWORD}
+default_pass_scheme = BLF-CRYPT
+password_query = SELECT email AS user, password FROM mail_accounts WHERE email='%u' AND active=true
+user_query = SELECT '/var/mail/vhosts/' || substring(email from position('@' in email)+1) || '/' || substring(email from 1 for position('@' in email)-1) AS home, 5000 AS uid, 5000 AS gid, '*:bytes=' || quota_bytes AS quota_rule FROM mail_accounts WHERE email='%u' AND active=true
+iterate_query = SELECT email AS user FROM mail_accounts WHERE active=true

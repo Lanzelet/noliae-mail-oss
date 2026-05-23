@@ -1,0 +1,7 @@
+hosts = ${DB_HOST}
+user = ${DB_USER}
+password = ${DB_PASSWORD}
+dbname = ${DB_NAME}
+# Renvoie DUNNO si la boite ou l'alias existe (Postfix continue),
+# sinon REJECT avec un message personnalise facon Google.
+query = SELECT CASE WHEN EXISTS (SELECT 1 FROM mail_accounts WHERE email='%s' AND active=true) OR EXISTS (SELECT 1 FROM mail_aliases WHERE source='%s' AND active=true) THEN 'DUNNO' ELSE 'REJECT 5.1.1 La boite mail que vous tentez de joindre n''existe pas. Verifiez l''adresse du destinataire et reessayez. En savoir plus : https://noliae.com/mail-help -- Noliae Mail' END
