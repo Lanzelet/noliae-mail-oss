@@ -73,6 +73,10 @@ Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->prefix('admin')->g
     Route::patch('/accounts/{id}/password', [AdminController::class, 'resetPassword'])->whereNumber('id');
     Route::patch('/accounts/{id}/quota',    [AdminController::class, 'updateQuota'])->whereNumber('id');
     Route::delete('/accounts/{id}',         [AdminController::class, 'deleteAccount'])->whereNumber('id');
+    Route::get('/aliases',                  [AdminController::class, 'aliases']);
+    Route::post('/aliases',                 [AdminController::class, 'createAlias']);
+    Route::patch('/aliases/{id}/toggle',    [AdminController::class, 'toggleAlias'])->whereNumber('id');
+    Route::delete('/aliases/{id}',          [AdminController::class, 'deleteAlias'])->whereNumber('id');
     Route::get('/settings',                 [AdminController::class, 'settings']);
     Route::post('/settings',                [AdminController::class, 'saveSettings']);
 });

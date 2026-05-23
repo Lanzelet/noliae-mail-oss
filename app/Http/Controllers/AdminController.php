@@ -208,6 +208,76 @@ class AdminController extends Controller
         return back()->with('success', 'Mot de passe réinitialisé.');
     }
 
+    /* ──────────────── Forwards / Aliases ──────────────── */
+
+    public function aliases(Request $request)
+    {
+        $this->authorize_admin($request);
+        $aliases = DB::table('mail_aliases')
+            ->join('mail_domains', 'mail_domains.id', '=', 'mail_aliases.domain_id')
+            ->orderBy('mail_aliases.source')
+            ->get(['mail_aliases.id','mail_aliases.source','mail_aliases.destination',
+                   'mail_aliases.active','mail_aliases.created_at','mail_domains.name as domain_name'])
+            ->toArray();
+        $domains = DB::table('mail_domains')->where('active', true)
+            ->orderBy('name')->get(['id','name'])->toArray();
+        return Inertia::render('Admin/Aliases', [
+            'aliases' => $aliases,
+            'domains' => $domains,
+        ]);
+    }
+
+    public function createAlias(Request $request)
+    {
+        $this->authorize_admin($request);
+        $data = $request->validate([
+            'source_local' => 'required|string|max:64|regex:/^[a-z0-9][a-z0-9._-]{0,63}$/i',
+            'domain_id'    => 'required|integer|exists:mail_domains,id',
+            'destination'  => 'required|email:rfc|max:320',
+        ]);
+        $dom = DB::table('mail_domains')->where('id', $data['domain_id'])->first();
+        $source = strtolower($data['source_local']) . '@' . $dom->name;
+        $dest   = strtolower(trim($data['destination']));
+
+        // Boucle évidente : alias renvoie vers lui-même
+        if ($source === $dest) {
+            return back()->withErrors(['destination' => 'La destination doit être différente de la source.']);
+        }
+        // Pas de doublon strict
+        $exists = DB::table('mail_aliases')->where('source', $source)->where('destination', $dest)->exists();
+        if ($exists) {
+            return back()->withErrors(['source_local' => 'Ce forward existe déjà.']);
+        }
+        DB::table('mail_aliases')->insert([
+            'domain_id'   => $data['domain_id'],
+            'source'      => $source,
+            'destination' => $dest,
+            'active'      => true,
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+        return back()->with('success', "Forward $source → $dest créé.");
+    }
+
+    public function toggleAlias(Request $request, int $id)
+    {
+        $this->authorize_admin($request);
+        $row = DB::table('mail_aliases')->where('id', $id)->first();
+        abort_unless($row, 404);
+        DB::table('mail_aliases')->where('id', $id)->update([
+            'active'     => ! $row->active,
+            'updated_at' => now(),
+        ]);
+        return back()->with('success', $row->active ? 'Forward désactivé.' : 'Forward activé.');
+    }
+
+    public function deleteAlias(Request $request, int $id)
+    {
+        $this->authorize_admin($request);
+        DB::table('mail_aliases')->where('id', $id)->delete();
+        return back()->with('success', 'Forward supprimé.');
+    }
+
     /** Affiche les enregistrements DNS attendus pour un domaine. */
     public function domainDns(Request $request, int $id)
     {
