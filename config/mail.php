@@ -9,6 +9,7 @@ return [
     'imap_host'   => env('MAIL_IMAP_HOST', 'dovecot'),
     'imap_port'   => (int) env('MAIL_IMAP_PORT', 143),
     'imap_encryption' => env('MAIL_IMAP_ENCRYPTION', 'starttls'),
+    'imap_validate_cert' => (bool) env('MAIL_IMAP_VALIDATE_CERT', false),
     'smtp_host'   => env('MAIL_SMTP_HOST', 'postfix'),
     'smtp_port'   => (int) env('MAIL_SMTP_PORT', 25),
     'master_user' => env('MAIL_MASTER_USER', 'masteruser'),

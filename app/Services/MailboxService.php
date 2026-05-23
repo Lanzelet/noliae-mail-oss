@@ -41,13 +41,15 @@ class MailboxService
     {
         $cm = new ClientManager();
         $client = $cm->make([
-            'host'          => config('noliae.imap_host'),
-            'port'          => config('noliae.imap_port'),
-            'encryption'    => 'ssl',
-            'validate_cert' => true,
+            'host'          => config('mail.imap_host'),
+            'port'          => config('mail.imap_port'),
+            // Configurable via MAIL_IMAP_ENCRYPTION : "ssl" / "tls" / "starttls" / "" (plain).
+            // Démo OSS = plain car Dovecot interne sur réseau privé docker.
+            'encryption'    => config('mail.imap_encryption') ?: false,
+            'validate_cert' => (bool) config('mail.imap_validate_cert', false),
             'protocol'      => 'imap',
-            'username'      => $email . '*' . config('noliae.master_user'),
-            'password'      => config('noliae.master_pass'),
+            'username'      => $email . '*' . config('mail.master_user'),
+            'password'      => config('mail.master_pass'),
         ]);
         $client->connect();
         return $client;
@@ -669,7 +671,7 @@ class MailboxService
      */
     public function quota(string $email): array
     {
-        $limit = (int) config('noliae.quota_bytes');
+        $limit = (int) config('mail.quota_bytes');
 
         $used = \Illuminate\Support\Facades\Cache::remember(
             'mail_quota_' . md5($email), 120,

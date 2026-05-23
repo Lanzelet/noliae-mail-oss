@@ -29,7 +29,7 @@ class SendService
         // HELO/EHLO propre — sinon Symfony Mailer envoie « [127.0.0.1] »
         // (le hostname du conteneur webmail) ce qui ressemble à du spam.
         $dsn = sprintf('smtp://%s:%d?local_domain=mail.noliae.com',
-            config('noliae.smtp_host'), config('noliae.smtp_port'));
+            config('mail.smtp_host'), config('mail.smtp_port'));
         $mailer = new Mailer(Transport::fromDsn($dsn));
 
         $fromName = trim((string) ($opts['from_name'] ?? ''));
