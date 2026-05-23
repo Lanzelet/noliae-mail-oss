@@ -3,8 +3,16 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: ['**.md', 'LICENSE', '.github/dependabot.yml']
   pull_request:
     branches: [main]
+    paths-ignore: ['**.md', 'LICENSE']
+  workflow_dispatch:
+
+# Annule un run en cours si un nouveau push arrive sur la même ref
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint-php:

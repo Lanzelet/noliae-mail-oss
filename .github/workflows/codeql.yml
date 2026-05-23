@@ -1,12 +1,11 @@
 name: CodeQL
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 4 * * 1'
+    - cron: '0 4 * * 1'   # hebdo lundi 4h UTC
+  workflow_dispatch:
 
 permissions:
   contents: read

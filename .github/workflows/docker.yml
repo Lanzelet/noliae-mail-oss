@@ -2,9 +2,8 @@ name: Docker images
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
-  workflow_dispatch:
+    tags: ['v*']        # uniquement sur tag de release
+  workflow_dispatch:    # ou déclenchement manuel depuis l'UI Actions
 
 permissions:
   contents: read
