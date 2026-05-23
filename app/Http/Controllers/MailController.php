@@ -297,9 +297,15 @@ HTML;
         if (! $att) abort(404);
 
         $disp = $inline ? 'inline' : 'attachment';
+        // Anti-header-injection : strip CR/LF + quote + chars de contrôle
+        // (sinon un mail malicieux peut splitter le header HTTP via le nom de PJ).
+        $safeName  = preg_replace('/[\r\n"\x00-\x1f]/', '_', (string) $att['name']) ?: 'fichier';
+        $safeName  = substr($safeName, 0, 200);
+        // Encodage RFC 5987 pour caractères non-ASCII (UTF-8 dans filename*=)
+        $rfc5987   = "UTF-8''" . rawurlencode($safeName);
         return response($att['content'], 200, [
             'Content-Type'        => $att['mime'],
-            'Content-Disposition' => $disp . '; filename="' . str_replace('"', '', $att['name']) . '"',
+            'Content-Disposition' => $disp . '; filename="' . $safeName . '"; filename*=' . $rfc5987,
             'Cache-Control'       => 'private, max-age=3600',
             'X-Content-Type-Options' => 'nosniff',
         ]);
@@ -427,7 +433,10 @@ HTML;
             }
         }
 
-        $ch = curl_init($url);
+        // Anti DNS-rebind : on FIGE l'IP résolue ci-dessus pour empêcher
+        // un attaquant de renvoyer 169.254.169.254 entre le check et le curl.
+        $port  = (int) ($parts['port'] ?? (($parts['scheme'] ?? 'http') === 'https' ? 443 : 80));
+        $ch    = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => false,
@@ -437,6 +446,8 @@ HTML;
             CURLOPT_HEADER         => false,
             CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_MAXFILESIZE    => 8 * 1024 * 1024,
+            // Pin l'IP validée pour neutraliser le DNS-rebind TOCTOU.
+            CURLOPT_RESOLVE        => ["$host:$port:" . $ips[0]],
         ]);
         $body = curl_exec($ch);
         $ct   = (string) (curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: 'application/octet-stream');
@@ -566,7 +577,12 @@ HTML;
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 8,
             CURLOPT_CONNECTTIMEOUT => 4,
-            CURLOPT_FOLLOWLOCATION => true,
+            // SSRF mitigation : pas de follow auto (sinon redirect 302 vers
+            // un endpoint cloud-metadata possible). On fait le suivi
+            // explicitement avec validation d'IP si besoin.
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS      => CURLPROTO_HTTPS,
+            CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
             CURLOPT_USERAGENT      => 'NoliaeMail-KeyLookup/1.0',
         ]);
         $body = curl_exec($ch);

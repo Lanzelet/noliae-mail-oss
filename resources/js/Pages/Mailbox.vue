@@ -85,6 +85,10 @@
     <Transition name="toast">
       <div v-if="pendingSend" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-noliae-ink text-white px-4 py-2.5 rounded-full shadow-2xl text-sm">
         <span>Message envoyé dans <span class="font-bold tabular-nums">{{ undoCountdown }}</span> s</span>
+        <button @click="sendPendingNow" title="Envoyer immédiatement sans attendre la fenêtre d'annulation"
+                class="px-3 py-1 rounded-full bg-white/15 text-white font-bold text-xs hover:bg-white/25 transition">
+          Envoyer maintenant
+        </button>
         <button @click="cancelPendingSend" class="px-3 py-1 rounded-full bg-[#FF4D2E] text-white font-bold text-xs hover:bg-[#df3c1f] transition">Annuler</button>
       </div>
     </Transition>
@@ -2344,6 +2348,14 @@ function actuallySend(payload) {
     onSuccess: () => { composing.value = false; uploadPct.value = 0; draftUid.value = null; },
     onFinish:  () => { sending.value = false; pendingSend.value = null; },
   });
+}
+/** Annule la fenêtre d'attente undo-send et expédie immédiatement. */
+function sendPendingNow() {
+  if (!pendingSend.value) return;
+  clearTimeout(pendingSend.value.timeoutId);
+  const payload = pendingSend.value.payload;
+  pendingSend.value = null;
+  actuallySend(payload);
 }
 function cancelPendingSend() {
   if (!pendingSend.value) return;

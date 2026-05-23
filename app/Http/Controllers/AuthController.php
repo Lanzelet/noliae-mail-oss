@@ -46,16 +46,20 @@ class AuthController extends Controller
         ]);
     }
 
-    /** POST /login */
+    /** POST /login — protégé par throttle (cf route) + constant-time + dummy hash. */
     public function login(Request $request)
     {
         $data = $request->validate([
-            'email'    => 'required|email|max:255',
+            'email'    => 'required|email:rfc|max:255',
             'password' => 'required|string|max:200',
         ]);
         $email = strtolower(trim($data['email']));
         $row = DB::table('mail_accounts')->where('email', $email)->where('active', true)->first();
-        if (! $row || ! $this->verifyPassword($data['password'], $row->password)) {
+        // Anti-énumération comptes : on exécute TOUJOURS un password_verify
+        // (avec un hash bidon si l'user n'existe pas) pour égaliser le temps.
+        $stored = $row->password ?? '{BLF-CRYPT}$2y$12$invalidhashplaceholderXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+        $ok = $this->verifyPassword($data['password'], $stored);
+        if (! $row || ! $ok) {
             return back()->withErrors(['email' => 'Identifiants invalides.']);
         }
         $request->session()->regenerate();
@@ -119,10 +123,10 @@ class AuthController extends Controller
         if (str_starts_with($stored, '{BLF-CRYPT}')) {
             return password_verify($plain, substr($stored, strlen('{BLF-CRYPT}')));
         }
-        if (str_starts_with($stored, '{PLAIN}')) {
-            return hash_equals(substr($stored, 7), $plain);
-        }
-        // Fallback : si pas de préfixe Dovecot, essai password_verify direct
-        return password_verify($plain, $stored);
+        // Whitelist stricte : on REFUSE explicitement {PLAIN} et autres schémas
+        // pour éviter qu'un mot de passe stocké en clair en DB soit acceptable
+        // et pour éviter la branche password_verify aveugle (timing leak +
+        // possible match accidentel sur un hash mal-formé).
+        return false;
     }
 }

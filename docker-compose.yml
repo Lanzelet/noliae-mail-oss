@@ -54,7 +54,7 @@ services:
       - traefik.http.routers.mail.rule=Host(`${MAIL_DOMAIN}`)
       - traefik.http.routers.mail.entrypoints=websecure
       - traefik.http.routers.mail.tls.certresolver=le
-      - traefik.http.services.mail.loadbalancer.server.port=80
+      - traefik.http.services.mail.loadbalancer.server.port=8080
 
   ##########################
   # 2. POSTGRES

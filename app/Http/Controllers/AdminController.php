@@ -141,6 +141,11 @@ class AdminController extends Controller
         $this->authorize_admin($request);
         $row = DB::table('mail_accounts')->where('id', $id)->first();
         abort_unless($row, 404);
+        // Anti-lockout : refuse de suspendre/désactiver l'email admin lui-même.
+        $adminEmail = strtolower((string) AppSettings::get('admin_email', env('ADMIN_EMAIL', '')));
+        if (strtolower($row->email) === $adminEmail && $row->active) {
+            return back()->withErrors(['email' => 'Tu ne peux pas suspendre le compte administrateur (lockout).']);
+        }
         DB::table('mail_accounts')->where('id', $id)->update([
             'active'     => ! $row->active,
             'updated_at' => now(),
@@ -181,6 +186,12 @@ class AdminController extends Controller
     public function deleteAccount(Request $request, int $id)
     {
         $this->authorize_admin($request);
+        $row = DB::table('mail_accounts')->where('id', $id)->first();
+        abort_unless($row, 404);
+        $adminEmail = strtolower((string) AppSettings::get('admin_email', env('ADMIN_EMAIL', '')));
+        if (strtolower($row->email) === $adminEmail) {
+            return back()->withErrors(['email' => 'Tu ne peux pas supprimer le compte administrateur (lockout).']);
+        }
         DB::table('mail_accounts')->where('id', $id)->delete();
         return back()->with('success', 'Compte supprimé.');
     }

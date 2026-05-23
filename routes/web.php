@@ -11,11 +11,14 @@ use Illuminate\Support\Facades\Route;
  */
 Route::get('/', [AuthController::class, 'landing'])->name('landing');
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+// Rate-limit : 5 tentatives / minute / IP pour limiter le bruteforce.
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-Route::post('/register', [AuthController::class, 'register']);
+// Rate-limit : 3 inscriptions / minute / IP.
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
+// Logout POST uniquement (CSRF) — on retire l'ancien GET /logout
+// qui permettait un déloggage via <img src=/logout>.
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-Route::get('/logout', [AuthController::class, 'logout']);
 
 Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
     Route::get('/webmail', [MailController::class, 'index']);

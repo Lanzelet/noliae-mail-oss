@@ -62,6 +62,12 @@ RUN mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions 
 COPY docker/web/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 80
+# Apache écoute sur 8080 (port non-privilégié = on peut tourner en non-root).
+RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
+ && sed -i 's/:80>/:8080>/' /etc/apache2/sites-enabled/000-default.conf \
+ && chown -R www-data:www-data /var/log/apache2 /var/run/apache2 /var/lib/apache2
+
+EXPOSE 8080
+USER www-data
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["apache2-foreground"]
