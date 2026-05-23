@@ -19,9 +19,9 @@ jobs:
       matrix:
         image:
           - { name: web,     context: ., dockerfile: docker/web/Dockerfile }
-          - { name: postfix, context: docker/postfix, dockerfile: docker/postfix/Dockerfile }
-          - { name: dovecot, context: docker/dovecot, dockerfile: docker/dovecot/Dockerfile }
-          - { name: rspamd,  context: docker/rspamd,  dockerfile: docker/rspamd/Dockerfile }
+          - { name: postfix, context: docker/postfix, dockerfile: Dockerfile }
+          - { name: dovecot, context: docker/dovecot, dockerfile: Dockerfile }
+          - { name: rspamd,  context: docker/rspamd,  dockerfile: Dockerfile }
     steps:
       - uses: actions/checkout@v4
 
