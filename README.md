@@ -24,7 +24,7 @@
 - 📎 Pièces jointes via stockage S3 (MinIO inclus)
 - 🛡️ Anti-spam **rspamd** + signature **DKIM** + filtres **Sieve**
 - 🔒 TLS automatique via Let's Encrypt (Traefik)
-- 🔑 Auth locale (email + mot de passe BCRYPT — compatible Dovecot)
+- 🔑 **Auth locale uniquement** : email + mot de passe BCRYPT (compatible Dovecot). **Pas de SSO**, pas d'OAuth, pas de dépendance à un IdP externe. Idéal pour rester totalement souverain.
 
 ## 🚀 Quickstart
 
@@ -75,6 +75,22 @@ Crée ton premier compte sur `https://${MAIL_DOMAIN}/register` puis utilise-le a
 ```
 
 Tous les services tournent dans un seul `docker compose` (8 conteneurs, ~600 Mo image totale).
+
+## 🔐 Authentification & administration
+
+**Pas de SSO**, pas d'OAuth, pas de dépendance à un IdP externe. Tout est local :
+
+- **Côté utilisateur** : login email + mot de passe sur `https://${MAIL_DOMAIN}` → session web + accès IMAP/SMTP avec les mêmes identifiants (BCRYPT compatible Dovecot).
+- **Côté admin** : le compte dont l'email = `ADMIN_EMAIL` accède à `https://${MAIL_DOMAIN}/admin`. Aucun second compte privilégié, aucune connexion externe.
+- **Inscriptions publiques** : désactivées par défaut côté OSS. L'admin peut les réactiver dans `/admin/settings`.
+
+L'admin peut depuis `/admin` :
+- Ajouter / désactiver / supprimer des domaines (multi-domaine supporté)
+- Créer, suspendre, supprimer, reset password, **modifier le quota** de chaque compte
+- Voir les enregistrements DNS attendus pour chaque domaine (A, MX, SPF, DKIM, DMARC, MTA-STS, TLS-RPT)
+- Toggle inscriptions publiques + intégration IA Noliae optionnelle (clé API requise)
+
+> **Note quota** : quand tu changes le quota d'un compte existant, l'utilisateur doit se **déconnecter puis se reconnecter** pour que Dovecot recharge la nouvelle limite (cache `maildirsize` sinon).
 
 ## 🔧 Configuration
 

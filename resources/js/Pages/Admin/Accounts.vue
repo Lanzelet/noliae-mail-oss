@@ -21,7 +21,14 @@
           <tr v-for="a in accounts" :key="a.id" class="border-t border-gray-100 dark:border-zinc-700">
             <td class="px-4 py-2.5 font-mono">{{ a.email }}</td>
             <td class="px-4 py-2.5">{{ a.display_name || '—' }}</td>
-            <td class="px-4 py-2.5 text-gray-500">{{ (a.quota_bytes/1024/1024).toFixed(0) }} Mo</td>
+            <td class="px-4 py-2.5">
+              <div class="flex items-center gap-1">
+                <input type="number" min="10" :value="Math.round(a.quota_bytes/1024/1024)"
+                       @blur="changeQuota(a, $event)" @keydown.enter="changeQuota(a, $event)"
+                       class="w-20 px-2 py-1 text-sm border border-gray-200 dark:border-zinc-600 dark:bg-zinc-900 rounded focus:outline-none focus:border-[#FF4D2E]" />
+                <span class="text-xs text-gray-500">Mo</span>
+              </div>
+            </td>
             <td class="px-4 py-2.5"><span :class="a.active ? 'text-emerald-600' : 'text-amber-500'">● {{ a.active ? 'actif' : 'suspendu' }}</span></td>
             <td class="px-4 py-2.5 text-right whitespace-nowrap">
               <button @click="resetPwd(a)" class="text-xs text-gray-600 hover:text-[#FF4D2E] mr-3">🔑 Reset</button>
@@ -48,5 +55,11 @@ function del(a) { if (confirm(`Supprimer ${a.email} ? Cette action est définiti
 function resetPwd(a) {
   const p = prompt(`Nouveau mot de passe pour ${a.email} (10 car. min) :`);
   if (p && p.length >= 10) router.patch(`/admin/accounts/${a.id}/password`, { password: p }, { preserveScroll: true });
+}
+function changeQuota(a, ev) {
+  const mb = parseInt(ev.target.value);
+  const current = Math.round(a.quota_bytes / 1024 / 1024);
+  if (!mb || mb === current) return;
+  router.patch(`/admin/accounts/${a.id}/quota`, { quota_mb: mb }, { preserveScroll: true });
 }
 </script>

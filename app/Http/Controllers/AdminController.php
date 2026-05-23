@@ -148,6 +148,36 @@ class AdminController extends Controller
         return back()->with('success', $row->active ? 'Compte suspendu.' : 'Compte réactivé.');
     }
 
+    /** PATCH /admin/accounts/{id}/quota — modifie le quota d'un compte. */
+    public function updateQuota(Request $request, int $id)
+    {
+        $this->authorize_admin($request);
+        $max = AppSettings::int('max_quota_mb', 51200);
+        $data = $request->validate([
+            'quota_mb' => "required|integer|min:10|max:$max",
+        ]);
+        $row = DB::table('mail_accounts')->where('id', $id)->first();
+        abort_unless($row, 404);
+
+        $newBytes = $data['quota_mb'] * 1024 * 1024;
+        DB::table('mail_accounts')->where('id', $id)->update([
+            'quota_bytes' => $newBytes,
+            'updated_at'  => now(),
+        ]);
+
+        // Tente de supprimer le fichier maildirsize cache par Dovecot.
+        // (chemin standard /var/vmail/<domain>/<local>/Maildir/maildirsize ;
+        // si la stack utilise un volume partage avec le web container c'est OK,
+        // sinon il faudra lancer `doveadm quota recalc -u $email` cote dovecot)
+        $maildirsize = '/var/vmail/' . ltrim($row->maildir, '/') . 'Maildir/maildirsize';
+        if (is_writable($maildirsize)) @unlink($maildirsize);
+
+        return back()->with('success',
+            "Quota mis a jour ({$data['quota_mb']} Mo). " .
+            "L'utilisateur doit se deconnecter/reconnecter pour appliquer la nouvelle limite."
+        );
+    }
+
     public function deleteAccount(Request $request, int $id)
     {
         $this->authorize_admin($request);
