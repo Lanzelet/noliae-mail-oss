@@ -106,6 +106,14 @@
             <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath('dot')"/>
           </svg>
         </button>
+        <a href="/people" title="Annuaire de l'organisation"
+           class="px-2 py-1.5 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition" aria-label="Annuaire">
+          👥
+        </a>
+        <a href="/contacts" title="Carnet d'adresses"
+           class="px-2 py-1.5 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition" aria-label="Contacts">
+          📇
+        </a>
         <a href="/account" title="Mon compte"
            class="px-3 py-1.5 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition">
           Compte
