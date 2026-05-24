@@ -90,7 +90,9 @@ class MailInstallCommand extends Command
             } else {
                 [$local] = explode('@', $adminMail, 2);
                 $localDomain = explode('@', $adminMail, 2)[1] ?? $domain;
-                $maildir = "/var/vmail/$localDomain/$local/Maildir";
+                // ATTENTION : maildir = chemin RELATIF (Dovecot prefixe /var/vmail/
+                // dans la SQL user_query). Doit terminer par /
+                $maildir = "$localDomain/$local/";
                 DB::table('mail_accounts')->insert([
                     'email'        => $adminMail,
                     'password'     => $hash,
