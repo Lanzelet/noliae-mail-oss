@@ -159,7 +159,7 @@
 import AdminLayout from './Layout.vue';
 import { router } from '@inertiajs/vue3';
 import { computed } from 'vue';
-defineProps({ available: Boolean, stat: Object, actions: Object, history: Array, errors: Array, symbols: Array, rspamd_url: String });
+const props = defineProps({ available: Boolean, stat: Object, actions: [Object, Array], history: Array, errors: Array, symbols: Array, rspamd_url: String });
 function fmt(n) { return new Intl.NumberFormat('fr-FR').format(n); }
 function formatBytes(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1) + ' KB'; return (b/1048576).toFixed(1) + ' MB'; }
 function time(unix) { return new Date(unix * 1000).toLocaleString('fr-FR'); }
