@@ -2,8 +2,9 @@ name: Docker images
 
 on:
   push:
-    tags: ['v*']        # uniquement sur tag de release
-  workflow_dispatch:    # ou déclenchement manuel depuis l'UI Actions
+    branches: [main]                              # build :latest sur chaque push main
+    tags:     ['v*']                              # tags semver pour les releases
+  workflow_dispatch:                              # ou déclenchement manuel depuis l'UI
 
 permissions:
   contents: read
@@ -17,10 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - { name: web, context: ., dockerfile: docker/web/Dockerfile }
-          # TODO : images postfix/dovecot/rspamd à valider end-to-end avant publication
-          # (configs éprouvées en prod 149, mais Dockerfiles OSS pas encore testés
-          # en stack docker-compose autonome). Réactiver une fois les smoke tests verts.
+          - { name: web,     context: .,              dockerfile: docker/web/Dockerfile     }
+          - { name: postfix, context: docker/postfix, dockerfile: docker/postfix/Dockerfile }
+          - { name: dovecot, context: docker/dovecot, dockerfile: docker/dovecot/Dockerfile }
+          - { name: rspamd,  context: docker/rspamd,  dockerfile: docker/rspamd/Dockerfile  }
     steps:
       - uses: actions/checkout@v6
 
@@ -54,9 +55,11 @@ jobs:
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
-          platforms: linux/amd64,linux/arm64
+          # On reste sur amd64 only pour aller vite et économiser les minutes
+          # GitHub Actions gratuites. arm64 nécessaire ? ajoute linux/arm64 ici.
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
+          cache-to:   type=gha,mode=max,scope=${{ matrix.image.name }}
