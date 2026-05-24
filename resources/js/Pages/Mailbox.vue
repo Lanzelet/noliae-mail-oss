@@ -707,6 +707,7 @@
                 <div ref="inlineEditorRef" contenteditable="true"
                      @input="composeDirty = true"
                      @paste="onEditorPaste" @drop.prevent="onEditorDrop" @dragover.prevent
+                     @mouseup="cacheSelection" @keyup="cacheSelection" @blur="cacheSelection"
                      class="px-4 py-3 text-sm leading-relaxed min-h-[100px] max-h-[40vh] overflow-y-auto focus:outline-none"></div>
                 <div class="flex items-center gap-1 px-2 py-1.5 border-t border-gray-50 bg-gray-50/50">
                   <button @click="sendInlineReply" :disabled="sending"
@@ -955,6 +956,7 @@
           <div ref="editorRef" contenteditable="true"
                @paste="onEditorPaste" @drop.prevent="onEditorDrop" @dragover.prevent
                @input="composeDirty = true"
+               @mouseup="cacheSelection" @keyup="cacheSelection" @blur="cacheSelection"
                :class="['border border-t-0 border-gray-200 rounded-b-xl px-3.5 py-3 text-sm leading-relaxed',
                         'overflow-y-auto focus:outline-none focus:ring-2 focus:ring-[#FF4D2E]/30',
                         composeMax ? 'min-h-[55vh] max-h-[70vh]' : 'min-h-[220px] max-h-[40vh]']"></div>
@@ -2427,16 +2429,63 @@ function forward() {
     + origHtml(m)));
   askReceipt.value = !!props.settings?.ask_receipts;
 }
-function format(cmd, val = null) {
-  if (editorRef.value) editorRef.value.focus();
+/* ── Sauvegarde / restauration de la sélection ──
+   Bug : quand on clique un <select> ou un <input type=color>, l'éditeur
+   perd à la fois le focus ET la Selection.getRangeAt(0). On capture la
+   sélection au fil de l'eau (mouseup / keyup), puis on la restore avant
+   chaque exec. Sans ça, fontName/fontSize/foreColor sont des no-ops. */
+let savedRange = null;
+let savedEditor = null;
+function activeEditor() {
+  // Préfère l'éditeur principal s'il est rendu, sinon l'éditeur inline.
+  return editorRef.value || inlineEditorRef.value || null;
+}
+function cacheSelection() {
+  const sel = window.getSelection?.();
+  if (!sel || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  const ed = [editorRef.value, inlineEditorRef.value].find(
+    (e) => e && e.contains(range.commonAncestorContainer)
+  );
+  if (ed) {
+    savedRange = range.cloneRange();
+    savedEditor = ed;
+  }
+}
+function restoreSelection() {
+  const ed = savedEditor || activeEditor();
+  if (!ed) return;
+  ed.focus();
+  if (!savedRange) {
+    // Aucune sélection mémorisée : on place le curseur à la fin
+    const range = document.createRange();
+    range.selectNodeContents(ed);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return;
+  }
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(savedRange);
+}
+function execWithSel(cmd, val = null) {
+  restoreSelection();
   document.execCommand(cmd, false, val);
+  // Après exec, la nouvelle sélection devient la référence
+  cacheSelection();
+}
+
+function format(cmd, val = null) {
+  // Bouton classique : @mousedown.prevent garde le focus déjà, mais on
+  // passe quand même par execWithSel pour rester cohérent et marcher
+  // même quand l'éditeur a perdu le focus (clic dans un select avant).
+  execWithSel(cmd, val);
 }
 function makeLink() {
   const url = prompt('Adresse du lien (https://…) :');
-  if (url) {
-    if (editorRef.value) editorRef.value.focus();
-    document.execCommand('createLink', false, url);
-  }
+  if (url) execWithSel('createLink', url);
 }
 
 /* ── Police, taille, couleur, émojis, image, signature ── */
@@ -2444,21 +2493,17 @@ const textColor = ref('#FF4D2E');
 const emojiOpen = ref(false);
 function setFont(name) {
   if (!name) return;
-  if (editorRef.value) editorRef.value.focus();
-  document.execCommand('fontName', false, name);
+  execWithSel('fontName', name);
 }
 function setSize(s) {
   if (!s) return;
-  if (editorRef.value) editorRef.value.focus();
-  document.execCommand('fontSize', false, s);
+  execWithSel('fontSize', s);
 }
 function applyColor() {
-  if (editorRef.value) editorRef.value.focus();
-  document.execCommand('foreColor', false, textColor.value);
+  execWithSel('foreColor', textColor.value);
 }
 function insertText(t) {
-  if (editorRef.value) editorRef.value.focus();
-  document.execCommand('insertText', false, t);
+  execWithSel('insertText', t);
 }
 /* ── Images inline : upload S3 puis insertion dans le corps ── */
 const imgUploading = ref(false);
