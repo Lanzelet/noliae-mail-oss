@@ -57,6 +57,10 @@ services:
       RSPAMD_PASSWORD: ${RSPAMD_PASSWORD:-}
     volumes:
       - web-storage:/var/www/html/storage
+      # Lecture des clés DKIM publiques pour afficher le record TXT à publier
+      # dans l'admin panel /admin/domains/{id}/dns.
+      - postfix-dkim:/etc/opendkim/keys:ro
+      - ./docker/web/scheduler.sh:/usr/local/bin/scheduler.sh:ro
     networks: [intnet]
     labels:
       - traefik.enable=true
@@ -64,6 +68,32 @@ services:
       - traefik.http.routers.mail.entrypoints=websecure
       - traefik.http.routers.mail.tls.certresolver=le
       - traefik.http.services.mail.loadbalancer.server.port=8080
+
+  ##########################
+  # 1bis. SCHEDULER (Laravel artisan schedule:run chaque minute)
+  ##########################
+  scheduler:
+    image: ghcr.io/noliae/noliae-mail-oss-web:latest
+    restart: unless-stopped
+    depends_on: { postgres: { condition: service_healthy }, web: { condition: service_started } }
+    env_file: [.env]
+    environment:
+      APP_URL: https://${MAIL_DOMAIN}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_NAME:-noliaemail}
+      DB_USERNAME: ${DB_USER:-noliae}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      MAIL_DOMAIN: ${MAIL_DOMAIN}
+      DEMO_RESET: ${DEMO_RESET:-false}
+    volumes:
+      - web-storage:/var/www/html/storage
+      - vmail:/var/vmail
+      - ./docker/web/scheduler.sh:/usr/local/bin/scheduler.sh:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/scheduler.sh"]
+    networks: [intnet]
 
   ##########################
   # 2. POSTGRES
@@ -153,6 +183,9 @@ services:
     volumes:
       - postfix-data:/var/spool/postfix
       - postfix-tls:/etc/letsencrypt
+      # DKIM keys persistées entre rebuilds. Lecture aussi par le web container
+      # pour afficher le record TXT à publier dans /admin/domains/{id}/dns.
+      - postfix-dkim:/etc/opendkim/keys
     networks: [intnet]
 
   ##########################
@@ -231,6 +264,7 @@ volumes:
   minio-data:
   postfix-data:
   postfix-tls:
+  postfix-dkim:
   vmail:
   dovecot-tls:
   rspamd-data:

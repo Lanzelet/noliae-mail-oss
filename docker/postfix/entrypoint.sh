@@ -30,6 +30,45 @@ done
 
 # Certificat TLS : si Let's Encrypt déjà obtenu monter /etc/letsencrypt
 # sinon, génère un cert auto-signé temporaire (Postfix refusera STARTTLS sans cert)
+# ─── DKIM ───────────────────────────────────────────────────────────────
+# Génère une clé DKIM par domaine au premier démarrage (persistée dans
+# /etc/opendkim/keys via le volume postfix-dkim) et démarre opendkim sur
+# inet:8891. Tu publies ensuite le record TXT côté DNS (UI admin l'affiche
+# dans /admin/domains/{id}/dns).
+mkdir -p /etc/opendkim/keys/${MAIL_DOMAIN}
+if [ ! -f /etc/opendkim/keys/${MAIL_DOMAIN}/mail.private ]; then
+  echo "[entrypoint] Generating DKIM key for ${MAIL_DOMAIN}..."
+  opendkim-genkey -b 2048 -d "${MAIL_DOMAIN}" -D /etc/opendkim/keys/${MAIL_DOMAIN} -s mail -v
+  chown -R opendkim:opendkim /etc/opendkim/keys
+  chmod 600 /etc/opendkim/keys/${MAIL_DOMAIN}/mail.private
+fi
+cat > /etc/opendkim.conf <<EOF
+Syslog                  yes
+UMask                   002
+Socket                  inet:8891@0.0.0.0
+PidFile                 /run/opendkim/opendkim.pid
+Mode                    sv
+Canonicalization        relaxed/relaxed
+KeyTable                refile:/etc/opendkim/key.table
+SigningTable            refile:/etc/opendkim/signing.table
+ExternalIgnoreList      refile:/etc/opendkim/trusted.hosts
+InternalHosts           refile:/etc/opendkim/trusted.hosts
+SignatureAlgorithm      rsa-sha256
+UserID                  opendkim:opendkim
+EOF
+echo "mail._domainkey.${MAIL_DOMAIN} ${MAIL_DOMAIN}:mail:/etc/opendkim/keys/${MAIL_DOMAIN}/mail.private" > /etc/opendkim/key.table
+echo "*@${MAIL_DOMAIN} mail._domainkey.${MAIL_DOMAIN}" > /etc/opendkim/signing.table
+cat > /etc/opendkim/trusted.hosts <<EOF
+127.0.0.1
+::1
+localhost
+${MAIL_DOMAIN}
+.${MAIL_DOMAIN}
+EOF
+mkdir -p /run/opendkim
+chown opendkim:opendkim /run/opendkim
+opendkim || echo "[entrypoint] opendkim start failed"
+
 CERT=/etc/letsencrypt/live/${MAIL_DOMAIN}/fullchain.pem
 KEY=/etc/letsencrypt/live/${MAIL_DOMAIN}/privkey.pem
 if [ ! -f "$CERT" ]; then

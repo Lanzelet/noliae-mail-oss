@@ -60,8 +60,9 @@ smtpd_tls_auth_only = yes
 broken_sasl_auth_clients = yes
 virtual_mailbox_maps = pgsql:/etc/postfix/pgsql/virtual_mailboxes.cf
 virtual_mailbox_domains = pgsql:/etc/postfix/pgsql/virtual_domains.cf
-smtpd_milters = inet:rspamd:11332
-non_smtpd_milters = inet:rspamd:11332
+# Milter chain : opendkim signe le sortant, rspamd score l'entrant.
+smtpd_milters = inet:127.0.0.1:8891, inet:rspamd:11332
+non_smtpd_milters = inet:127.0.0.1:8891, inet:rspamd:11332
 milter_protocol = 6
 milter_default_action = accept
 syslog_name = noliae-mail

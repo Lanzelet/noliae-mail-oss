@@ -4,6 +4,7 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         postfix postfix-pgsql postfix-pcre \
+        opendkim opendkim-tools \
         ca-certificates gettext-base rsyslog openssl netcat-openbsd \
         python3 python3-psycopg2 python3-redis \
  && rm -rf /var/lib/apt/lists/*

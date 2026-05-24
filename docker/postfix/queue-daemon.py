@@ -15,6 +15,7 @@ Sécurité : token shared via env QUEUE_TOKEN. Le client doit envoyer
 import os
 import sys
 import json
+import hmac
 import subprocess
 import socketserver
 
@@ -63,7 +64,8 @@ def show(qid):
     return out if code == 0 else None
 
 def handle(req):
-    if req.get('token') != TOKEN:
+    # Comparaison constante-temps pour éviter un timing attack sur le token.
+    if not hmac.compare_digest(str(req.get('token', '')), TOKEN):
         return {'ok': False, 'error': 'unauthorized'}
     action = req.get('action')
     qid = (req.get('queue_id') or '').strip()

@@ -20,6 +20,11 @@ fi
 # Migrations
 php artisan migrate --force --no-interaction || echo "[entrypoint] migrations failed (ok si premier boot sans DB)"
 
+# Installation idempotente : crée le domaine MAIL_DOMAIN + compte admin
+# ADMIN_EMAIL si absents. Indispensable pour survivre à un `docker compose
+# down -v` qui détruit le volume Postgres.
+php artisan mail:install 2>&1 || echo "[entrypoint] mail:install failed (ok si DB pas prête)"
+
 # Cache
 php artisan config:cache || true
 php artisan route:cache || true

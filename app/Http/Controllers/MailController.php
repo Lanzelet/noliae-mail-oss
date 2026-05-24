@@ -457,22 +457,27 @@ HTML;
         // un attaquant de renvoyer 169.254.169.254 entre le check et le curl.
         $port  = (int) ($parts['port'] ?? (($parts['scheme'] ?? 'http') === 'https' ? 443 : 80));
         $ch    = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_TIMEOUT        => 8,
-            CURLOPT_CONNECTTIMEOUT => 4,
-            CURLOPT_USERAGENT      => 'NoliaeMail-Image-Proxy/1.0',
-            CURLOPT_HEADER         => false,
-            CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_MAXFILESIZE    => 8 * 1024 * 1024,
-            // Pin l'IP validée pour neutraliser le DNS-rebind TOCTOU.
-            CURLOPT_RESOLVE        => ["$host:$port:" . $ips[0]],
-        ]);
-        $body = curl_exec($ch);
-        $ct   = (string) (curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: 'application/octet-stream');
-        $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        curl_close($ch);
+        // try/finally : garantit la libération du handle curl même si le code
+        // qui suit lève une exception (évite la fuite de ressource libcurl).
+        try {
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_TIMEOUT        => 8,
+                CURLOPT_CONNECTTIMEOUT => 4,
+                CURLOPT_USERAGENT      => 'NoliaeMail-Image-Proxy/1.0',
+                CURLOPT_HEADER         => false,
+                CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+                CURLOPT_MAXFILESIZE    => 8 * 1024 * 1024,
+                // Pin l'IP validée pour neutraliser le DNS-rebind TOCTOU.
+                CURLOPT_RESOLVE        => ["$host:$port:" . $ips[0]],
+            ]);
+            $body = curl_exec($ch);
+            $ct   = (string) (curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: 'application/octet-stream');
+            $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        } finally {
+            curl_close($ch);
+        }
 
         if ($body === false || $code < 200 || $code >= 300) {
             abort(502);
@@ -597,21 +602,26 @@ HTML;
 
         $url = 'https://keys.openpgp.org/vks/v1/by-email/' . rawurlencode($email);
         $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 8,
-            CURLOPT_CONNECTTIMEOUT => 4,
-            // SSRF mitigation : pas de follow auto (sinon redirect 302 vers
-            // un endpoint cloud-metadata possible). On fait le suivi
-            // explicitement avec validation d'IP si besoin.
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_PROTOCOLS      => CURLPROTO_HTTPS,
-            CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
-            CURLOPT_USERAGENT      => 'NoliaeMail-KeyLookup/1.0',
-        ]);
-        $body = curl_exec($ch);
-        $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        curl_close($ch);
+        // try/finally pour garantir curl_close même si le code suivant throw
+        // (évite la fuite de handle libcurl).
+        try {
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 8,
+                CURLOPT_CONNECTTIMEOUT => 4,
+                // SSRF mitigation : pas de follow auto (sinon redirect 302 vers
+                // un endpoint cloud-metadata possible). On fait le suivi
+                // explicitement avec validation d'IP si besoin.
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_PROTOCOLS      => CURLPROTO_HTTPS,
+                CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
+                CURLOPT_USERAGENT      => 'NoliaeMail-KeyLookup/1.0',
+            ]);
+            $body = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        } finally {
+            curl_close($ch);
+        }
 
         if ($code !== 200 || ! is_string($body) || ! str_contains($body, 'BEGIN PGP PUBLIC KEY BLOCK')) {
             return response()->json(['found' => false], 404);
@@ -638,7 +648,10 @@ HTML;
             $dir = storage_path('app/webmail-settings');
             if (! is_dir($dir)) abort(404);
         }
-        foreach (scandir($dir) as $f) {
+        // scandir peut renvoyer false si le dossier devient illisible entre
+        // le check et l'appel : on protège contre le foreach sur false.
+        $files = @scandir($dir) ?: [];
+        foreach ($files as $f) {
             if (! str_ends_with($f, '.json')) continue;
             try {
                 $data = json_decode(file_get_contents("$dir/$f"), true) ?: [];

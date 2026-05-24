@@ -710,7 +710,11 @@ class AdminController extends Controller
     {
         $this->authorize_admin($request);
         if (! preg_match('/^[A-F0-9]+$/i', $queueId)) abort(400);
-        return response($pq->showMail($queueId) ?? '', 200, [
+        // 404 si le mail n'existe plus dans la queue (au lieu d'un 200 vide
+        // qui masque le bug côté UI).
+        $body = $pq->showMail($queueId);
+        if ($body === null || $body === '') abort(404);
+        return response($body, 200, [
             'Content-Type' => 'text/plain; charset=utf-8',
         ]);
     }

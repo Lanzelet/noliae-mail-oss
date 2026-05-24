@@ -91,8 +91,10 @@ class ImapMigrationRunner
 
         $logPath = storage_path("logs/migration-$migrationId.log");
         $tail = '';
-        $copied = $job->copied_messages;
-        $total  = $job->total_messages;
+        // Cast en int : copied/total peuvent être NULL au premier appel (job
+        // tout juste créé). max(null, …) émet un warning sur PHP 8+.
+        $copied = (int) ($job->copied_messages ?? 0);
+        $total  = (int) ($job->total_messages ?? 0);
         if (is_readable($logPath)) {
             $lines = @file($logPath, FILE_IGNORE_NEW_LINES) ?: [];
             $tail = implode("\n", array_slice($lines, -100));

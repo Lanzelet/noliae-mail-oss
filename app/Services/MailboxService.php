@@ -603,8 +603,10 @@ class MailboxService
         if (! $m) { $client->disconnect(); return null; }
         $raw = '';
         try {
-            // Webklex expose le raw via getStructure + body parts
-            $hdrs = (string) $m->getHeader()?->raw ?? '';
+            // Webklex expose le raw via getStructure + body parts.
+            // Parenthèses : sans elles `(string) null ?? ''` retourne "" (le cast
+            // a la priorité sur ??), donc le fallback ne se déclenche jamais.
+            $hdrs = (string) ($m->getHeader()?->raw ?? '');
             $body = (string) $m->getRawBody();
             $raw = trim($hdrs) . "\r\n\r\n" . $body;
         } catch (\Throwable $e) {}
