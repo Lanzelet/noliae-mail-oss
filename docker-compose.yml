@@ -40,7 +40,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       AWS_DEFAULT_REGION: us-east-1
       AWS_BUCKET: attachments
-      AWS_ENDPOINT: http://minio:9000
+      AWS_ENDPOINT: ${AWS_ENDPOINT:-https://s3.${MAIL_DOMAIN}}
       AWS_USE_PATH_STYLE_ENDPOINT: true
       SESSION_DRIVER: database
       CACHE_STORE: redis
@@ -97,6 +97,14 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes: [minio-data:/data]
     networks: [intnet]
+    labels:
+      # Expose MinIO publiquement (les URLs presignees sont signees pour
+      # cet hostname-la, donc le navigateur doit pouvoir l'atteindre).
+      - traefik.enable=true
+      - traefik.http.routers.s3.rule=Host(`s3.${MAIL_DOMAIN}`)
+      - traefik.http.routers.s3.entrypoints=websecure
+      - traefik.http.routers.s3.tls.certresolver=le
+      - traefik.http.services.s3.loadbalancer.server.port=9000
 
   # Crée le bucket "attachments" au démarrage
   minio-init:
