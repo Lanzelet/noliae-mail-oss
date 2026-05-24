@@ -107,6 +107,13 @@ Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->prefix('admin')->g
     Route::get('/audit',                    [AdminController::class, 'auditLog']);
     Route::get('/rspamd',                   [AdminController::class, 'rspamd']);
 
+    // Quarantaine spam (Postfix HOLD queue)
+    Route::get('/spam',                              [AdminController::class, 'spamQueue']);
+    Route::get('/spam/{queueId}/show',               [AdminController::class, 'spamShow']);
+    Route::post('/spam/{queueId}/release',           [AdminController::class, 'spamRelease']);
+    Route::post('/spam/release-all',                 [AdminController::class, 'spamReleaseAll']);
+    Route::delete('/spam/{queueId}',                 [AdminController::class, 'spamDelete']);
+
     // Migrations IMAP (imapsync)
     Route::get('/migrations',               [AdminController::class, 'migrations']);
     Route::post('/migrations',              [AdminController::class, 'startMigration']);

@@ -43,6 +43,7 @@ const tabs = [
   { label: 'Partagées',       href: '/admin/shared' },
   { label: 'Migrations',      href: '/admin/migrations' },
   { label: 'Anti-spam',       href: '/admin/rspamd' },
+  { label: 'Quarantaine',     href: '/admin/spam' },
   { label: 'Paramètres',      href: '/admin/settings' },
   { label: 'Audit',           href: '/admin/audit' },
 ];

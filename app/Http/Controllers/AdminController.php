@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Services\AppSettings;
 use App\Services\AuditLog;
 use App\Services\ImapMigrationRunner;
+use App\Services\PostfixQueue;
 use App\Services\RspamdClient;
 use Illuminate\Support\Facades\Crypt;
 use Inertia\Inertia;
@@ -687,6 +688,56 @@ class AdminController extends Controller
             'log'     => $job->log_tail,
             'error'   => $job->error,
         ]);
+    }
+
+    /* ──────────────── Quarantaine spam (Postfix HOLD queue) ──────────────── */
+
+    public function spamQueue(Request $request, PostfixQueue $pq)
+    {
+        $this->authorize_admin($request);
+        return Inertia::render('Admin/Spam', [
+            'available' => $pq->available(),
+            'held'      => $pq->holdList(),
+        ]);
+    }
+
+    public function spamShow(Request $request, string $queueId, PostfixQueue $pq)
+    {
+        $this->authorize_admin($request);
+        if (! preg_match('/^[A-F0-9]+$/i', $queueId)) abort(400);
+        return response($pq->showMail($queueId) ?? '', 200, [
+            'Content-Type' => 'text/plain; charset=utf-8',
+        ]);
+    }
+
+    public function spamRelease(Request $request, string $queueId, PostfixQueue $pq)
+    {
+        $this->authorize_admin($request);
+        if (! preg_match('/^[A-F0-9]+$/i', $queueId)) abort(400);
+        $ok = $pq->release($queueId);
+        AuditLog::record($request, 'spam.release', $queueId);
+        return back()->with($ok ? 'success' : 'error',
+            $ok ? "Mail $queueId libéré → livré au destinataire."
+                : "Échec libération.");
+    }
+
+    public function spamDelete(Request $request, string $queueId, PostfixQueue $pq)
+    {
+        $this->authorize_admin($request);
+        if (! preg_match('/^[A-F0-9]+$/i', $queueId)) abort(400);
+        $ok = $pq->delete($queueId);
+        AuditLog::record($request, 'spam.delete', $queueId);
+        return back()->with($ok ? 'success' : 'error',
+            $ok ? "Mail $queueId supprimé." : "Échec suppression.");
+    }
+
+    public function spamReleaseAll(Request $request, PostfixQueue $pq)
+    {
+        $this->authorize_admin($request);
+        $ok = $pq->releaseAll();
+        AuditLog::record($request, 'spam.release_all', null);
+        return back()->with($ok ? 'success' : 'error',
+            $ok ? 'Tous les mails HOLD libérés.' : 'Échec libération en masse.');
     }
 
     /* ──────────────── Rspamd metrics ──────────────── */
