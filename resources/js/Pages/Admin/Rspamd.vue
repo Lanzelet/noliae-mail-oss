@@ -26,19 +26,50 @@
         </div>
       </div>
 
-      <!-- Détail actions -->
+      <!-- Détail actions : scale visuelle -->
       <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6">
-        <h2 class="font-bold mb-3">Actions configurées</h2>
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 text-sm">
-          <div v-for="(score, name) in actions || {}" :key="name"
-               class="p-3 bg-gray-50 dark:bg-zinc-900 rounded-xl">
-            <div class="text-[10px] uppercase tracking-wider text-gray-500">{{ name }}</div>
-            <div class="font-mono font-bold mt-1">{{ score === null ? '—' : score }}</div>
-            <div class="text-[10px] text-gray-400 mt-1">{{ actionDesc(name) }}</div>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-bold">Seuils d'action</h2>
+          <span class="text-[11px] text-gray-500">Plus le score d'un mail est élevé, plus l'action est sévère</span>
+        </div>
+
+        <!-- Scale visuelle -->
+        <div class="relative h-2 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 mb-8">
+          <template v-for="a in sortedActions" :key="a.action">
+            <div v-if="a.value !== null" class="absolute -top-1 -translate-x-1/2"
+                 :style="{ left: `${scalePosition(a.value)}%` }">
+              <div :class="['w-4 h-4 rounded-full border-2 border-white shadow-md', actionDot(a.action)]"></div>
+              <div class="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-gray-700 dark:text-gray-300">
+                {{ a.value }}
+              </div>
+              <div class="absolute top-10 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] uppercase tracking-wider text-gray-500">
+                {{ actionShortLabel(a.action) }}
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Liste cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-12">
+          <div v-for="a in sortedActions" :key="`c-${a.action}`"
+               :class="['flex items-start gap-3 p-3 rounded-xl border', actionCardClass(a.action)]">
+            <div :class="['w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm', actionIconBg(a.action)]">
+              {{ actionIcon(a.action) }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-sm">{{ actionLabel(a.action) }}</div>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">{{ actionDesc(a.action) }}</p>
+              <div class="mt-1.5 flex items-baseline gap-1">
+                <span v-if="a.value !== null" class="font-mono font-bold text-sm">{{ a.value }}</span>
+                <span v-else class="text-xs text-gray-400 italic">par défaut</span>
+                <span v-if="a.value !== null" class="text-[10px] text-gray-400 uppercase tracking-wider">pts</span>
+              </div>
+            </div>
           </div>
         </div>
-        <p class="text-[11px] text-gray-500 mt-3">
-          Les actions sont déclenchées si le score d'un mail dépasse le seuil correspondant. Modifie via <code class="font-mono">/etc/rspamd/local.d/actions.conf</code>.
+
+        <p class="text-[11px] text-gray-500 mt-4 pt-3 border-t border-gray-100 dark:border-zinc-700">
+          ⚙ Modifier les seuils : <code class="font-mono">/etc/rspamd/local.d/actions.conf</code> puis <code class="font-mono">systemctl reload rspamd</code>.
         </p>
       </div>
 
@@ -127,6 +158,7 @@
 <script setup>
 import AdminLayout from './Layout.vue';
 import { router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 defineProps({ available: Boolean, stat: Object, actions: Object, history: Array, errors: Array, symbols: Array, rspamd_url: String });
 function fmt(n) { return new Intl.NumberFormat('fr-FR').format(n); }
 function formatBytes(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1) + ' KB'; return (b/1048576).toFixed(1) + ' MB'; }
@@ -141,12 +173,63 @@ function actionBadge(a) {
 }
 function actionDesc(name) {
   return {
-    'reject': 'Refus définitif (5xx)',
-    'add header': 'Tag X-Spam ajouté',
-    'rewrite subject': 'Sujet préfixé [SPAM]',
-    'greylist': 'Demande de re-envoi',
-    'no action': 'Laisse passer',
+    'reject':           'Refus définitif (réponse 5xx au sender).',
+    'soft reject':      'Refus temporaire (4xx), le sender réessaie plus tard.',
+    'add header':       'Mail accepté avec en-tête X-Spam ajouté pour filtre client.',
+    'rewrite subject':  'Sujet préfixé "[SPAM]" pour avertir le destinataire.',
+    'greylist':         'Demande de re-envoi 5 min plus tard (bloque les bots).',
+    'no action':        'Mail propre, livré sans modification.',
   }[name] || '';
+}
+function actionLabel(name) {
+  return {
+    'reject': 'Reject', 'soft reject': 'Soft reject', 'add header': 'Add header',
+    'rewrite subject': 'Rewrite subject', 'greylist': 'Greylist', 'no action': 'No action',
+  }[name] || name;
+}
+function actionShortLabel(name) {
+  return { 'reject': 'reject', 'soft reject': 'soft', 'add header': 'header',
+           'rewrite subject': 'subject', 'greylist': 'grey', 'no action': 'pass' }[name] || name;
+}
+function actionIcon(name) {
+  return { 'reject': '🚫', 'soft reject': '⏸', 'add header': '🏷',
+           'rewrite subject': '✏️', 'greylist': '⏳', 'no action': '✓' }[name] || '·';
+}
+function actionIconBg(name) {
+  return {
+    'reject':          'bg-rose-100 text-rose-700 dark:bg-rose-950',
+    'soft reject':     'bg-orange-100 text-orange-700 dark:bg-orange-950',
+    'add header':      'bg-amber-100 text-amber-700 dark:bg-amber-950',
+    'rewrite subject': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950',
+    'greylist':        'bg-blue-100 text-blue-700 dark:bg-blue-950',
+    'no action':       'bg-emerald-100 text-emerald-700 dark:bg-emerald-950',
+  }[name] || 'bg-gray-100 text-gray-600';
+}
+function actionDot(name) {
+  return {
+    'reject':          'bg-rose-500',
+    'soft reject':     'bg-orange-500',
+    'add header':      'bg-amber-500',
+    'rewrite subject': 'bg-yellow-500',
+    'greylist':        'bg-blue-500',
+    'no action':       'bg-emerald-500',
+  }[name] || 'bg-gray-400';
+}
+function actionCardClass(name) {
+  if (name === 'reject')      return 'border-rose-200 dark:border-rose-900 bg-rose-50/30 dark:bg-rose-950/30';
+  if (name === 'soft reject') return 'border-orange-200 dark:border-orange-900 bg-orange-50/30 dark:bg-orange-950/30';
+  if (name === 'no action')   return 'border-emerald-200 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/30';
+  return 'border-gray-200 dark:border-zinc-700 bg-gray-50/50 dark:bg-zinc-900/30';
+}
+
+const sortedActions = computed(() => {
+  const list = (Array.isArray(props.actions) ? props.actions : Object.entries(props.actions || {}).map(([action, value]) => ({ action, value })));
+  return list.sort((a, b) => (a.value ?? -999) - (b.value ?? -999));
+});
+function scalePosition(value) {
+  // Map 0-20 → 0-100% pour la scale (au-delà de 20 = 100%)
+  const v = Math.max(0, Math.min(20, value));
+  return (v / 20) * 100;
 }
 function refresh() { router.reload({ preserveScroll: true }); }
 </script>
