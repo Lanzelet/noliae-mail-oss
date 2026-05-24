@@ -28,8 +28,14 @@ class SendService
     {
         // HELO/EHLO propre — sinon Symfony Mailer envoie « [127.0.0.1] »
         // (le hostname du conteneur webmail) ce qui ressemble à du spam.
-        $dsn = sprintf('smtp://%s:%d?local_domain=mail.noliae.com',
-            config('mail.smtp_host'), config('mail.smtp_port'));
+        // verify_peer=0 : on parle à Postfix via le réseau privé intnet docker,
+        // le cert peut être auto-signé sans LE. Sans ça, Symfony Mailer fait
+        // « certificate verify failed » et la file reste bloquée.
+        // local_domain = HELO envoyé : sans ça Symfony envoie « [127.0.0.1] »
+        // ce qui ressemble à du spam.
+        $localDomain = config('mail.primary_domain') ?: 'localhost';
+        $dsn = sprintf('smtp://%s:%d?local_domain=%s&verify_peer=0',
+            config('mail.smtp_host'), config('mail.smtp_port'), $localDomain);
         $mailer = new Mailer(Transport::fromDsn($dsn));
 
         $fromName = trim((string) ($opts['from_name'] ?? ''));
