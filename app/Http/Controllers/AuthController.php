@@ -46,7 +46,7 @@ class AuthController extends Controller
         ]);
     }
 
-    /** POST /login — protégé par throttle (cf route) + constant-time + dummy hash. */
+    /** POST /login — protégé par throttle + constant-time + dummy hash + challenge 2FA si activé. */
     public function login(Request $request)
     {
         $data = $request->validate([
@@ -55,13 +55,66 @@ class AuthController extends Controller
         ]);
         $email = strtolower(trim($data['email']));
         $row = DB::table('mail_accounts')->where('email', $email)->where('active', true)->first();
-        // Anti-énumération comptes : on exécute TOUJOURS un password_verify
-        // (avec un hash bidon si l'user n'existe pas) pour égaliser le temps.
         $stored = $row->password ?? '{BLF-CRYPT}$2y$12$invalidhashplaceholderXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
         $ok = $this->verifyPassword($data['password'], $stored);
         if (! $row || ! $ok) {
             return back()->withErrors(['email' => 'Identifiants invalides.']);
         }
+        // Si 2FA activé : on garde le user en "pending_2fa" et on demande le code.
+        if (! empty($row->totp_enabled)) {
+            $request->session()->put('pending_2fa_email', $email);
+            return redirect('/login/2fa');
+        }
+        $request->session()->regenerate();
+        $request->session()->put('mail_user', $email);
+        $request->session()->put('mail_name', $row->display_name ?? '');
+        return redirect('/webmail');
+    }
+
+    /** GET /login/2fa — formulaire challenge TOTP. */
+    public function show2fa(Request $request)
+    {
+        if (! $request->session()->get('pending_2fa_email')) return redirect('/login');
+        return \Inertia\Inertia::render('Login2fa', []);
+    }
+
+    /** POST /login/2fa — vérifie le code TOTP. */
+    public function verify2fa(Request $request)
+    {
+        $email = (string) $request->session()->get('pending_2fa_email');
+        if (! $email) return redirect('/login');
+        $data = $request->validate(['code' => 'required|string|max:25']);
+        $row = DB::table('mail_accounts')->where('email', $email)->first();
+        if (! $row || ! $row->totp_secret) return redirect('/login');
+
+        $code = trim($data['code']);
+        $ok = false;
+
+        // Try TOTP code
+        try {
+            $secret = \Illuminate\Support\Facades\Crypt::decryptString($row->totp_secret);
+            if (\App\Services\Totp::verify($secret, $code)) $ok = true;
+        } catch (\Throwable $e) {}
+
+        // Try recovery code (one-shot)
+        if (! $ok && $row->totp_recovery) {
+            try {
+                $codes = json_decode(\Illuminate\Support\Facades\Crypt::decryptString($row->totp_recovery), true) ?: [];
+                $idx = array_search(strtolower($code), array_map('strtolower', $codes), true);
+                if ($idx !== false) {
+                    $ok = true;
+                    unset($codes[$idx]);
+                    DB::table('mail_accounts')->where('id', $row->id)->update([
+                        'totp_recovery' => \Illuminate\Support\Facades\Crypt::encryptString(json_encode(array_values($codes))),
+                    ]);
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        if (! $ok) {
+            return back()->withErrors(['code' => 'Code invalide ou expiré.']);
+        }
+        $request->session()->forget('pending_2fa_email');
         $request->session()->regenerate();
         $request->session()->put('mail_user', $email);
         $request->session()->put('mail_name', $row->display_name ?? '');

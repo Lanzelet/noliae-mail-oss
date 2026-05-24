@@ -13,6 +13,8 @@ Route::get('/', [AuthController::class, 'landing'])->name('landing');
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 // Rate-limit : 5 tentatives / minute / IP pour limiter le bruteforce.
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::get('/login/2fa',  [AuthController::class, 'show2fa']);
+Route::post('/login/2fa', [AuthController::class, 'verify2fa'])->middleware('throttle:10,1');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 // Rate-limit : 3 inscriptions / minute / IP.
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
@@ -25,6 +27,15 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/logout', [AuthController::class, 'logoutConfirm']);
 
 Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
+    // Espace utilisateur : mot de passe, 2FA, tokens SMTP
+    Route::get('/account',                     [\App\Http\Controllers\AccountController::class, 'index']);
+    Route::post('/account/password',           [\App\Http\Controllers\AccountController::class, 'changePassword']);
+    Route::post('/account/2fa/start',          [\App\Http\Controllers\AccountController::class, 'start2fa']);
+    Route::post('/account/2fa/confirm',        [\App\Http\Controllers\AccountController::class, 'confirm2fa']);
+    Route::post('/account/2fa/disable',        [\App\Http\Controllers\AccountController::class, 'disable2fa']);
+    Route::post('/account/tokens',             [\App\Http\Controllers\AccountController::class, 'createToken']);
+    Route::delete('/account/tokens/{id}',      [\App\Http\Controllers\AccountController::class, 'deleteToken'])->whereNumber('id');
+
     Route::get('/webmail', [MailController::class, 'index']);
     Route::post('/webmail/send', [MailController::class, 'send']);
     Route::post('/webmail/folders', [MailController::class, 'createFolder']);
