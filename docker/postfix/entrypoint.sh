@@ -42,6 +42,9 @@ if [ ! -f /etc/opendkim/keys/${MAIL_DOMAIN}/mail.private ]; then
   chown -R opendkim:opendkim /etc/opendkim/keys
   chmod 600 /etc/opendkim/keys/${MAIL_DOMAIN}/mail.private
 fi
+# La clé publique (mail.txt) est exposée en lecture pour le container web
+# (mount ro) qui l'affiche dans /admin/domains/{id}/dns.
+find /etc/opendkim/keys -name "mail.txt" -exec chmod 644 {} \; 2>/dev/null || true
 cat > /etc/opendkim.conf <<EOF
 Syslog                  yes
 UMask                   002
