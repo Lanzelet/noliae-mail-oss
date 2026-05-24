@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -16,14 +17,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('mail_accounts', function (Blueprint $t) {
-            $t->text('totp_secret')->nullable()->change();
-        });
+        // Raw SQL pour éviter la dépendance doctrine/dbal (->change()).
+        // Postgres ALTER COLUMN TYPE accepte la conversion VARCHAR(64) → TEXT
+        // sans cast explicite (le contenu est compatible).
+        DB::statement('ALTER TABLE mail_accounts ALTER COLUMN totp_secret TYPE TEXT');
     }
     public function down(): void
     {
-        Schema::table('mail_accounts', function (Blueprint $t) {
-            $t->string('totp_secret', 64)->nullable()->change();
-        });
+        DB::statement('ALTER TABLE mail_accounts ALTER COLUMN totp_secret TYPE VARCHAR(64) USING substring(totp_secret, 1, 64)');
     }
 };
