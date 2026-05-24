@@ -66,7 +66,7 @@ RUN mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions 
  && composer dump-autoload --optimize --no-dev \
  && npm run build \
  && rm -rf node_modules /root/.composer \
- && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+ && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public \
  && chmod -R 775 storage bootstrap/cache
 
 # Entrypoint : migrations + cache + apache foreground
