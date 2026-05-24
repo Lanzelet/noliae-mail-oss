@@ -8,16 +8,9 @@
     <!-- ── Panneau droit : formulaire ── -->
     <main class="flex-1 flex items-center justify-center px-6 py-12 lg:py-0">
       <div class="w-full max-w-md">
-        <div class="lg:hidden flex items-center gap-2 mb-8">
-          <svg viewBox="0 0 140 100" class="h-8 text-[#FF4D2E]">
-            <rect x="12" y="35" width="10" height="30" rx="5" fill="currentColor"/>
-            <rect x="30" y="25" width="10" height="50" rx="5" fill="currentColor"/>
-            <rect x="48" y="15" width="10" height="70" rx="5" fill="currentColor"/>
-            <rect x="66" y="22" width="10" height="56" rx="5" fill="#FF4D2E"/>
-            <rect x="84" y="20" width="10" height="60" rx="5" fill="currentColor"/>
-            <rect x="102" y="30" width="10" height="40" rx="5" fill="currentColor"/>
-            <rect x="120" y="35" width="10" height="30" rx="5" fill="currentColor"/>
-          </svg>
+        <!-- En mobile, branding Admin Center caché si un logo orga custom est uploadé. -->
+        <div v-if="!org_logo_url" class="lg:hidden flex items-center gap-2 mb-8">
+          <AnimatedLogo color="#FF4D2E" accent="#FF4D2E" class="h-8 w-auto"/>
           <span class="font-black text-xl">Admin Center</span>
         </div>
 
