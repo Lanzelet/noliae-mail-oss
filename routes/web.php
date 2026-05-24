@@ -88,6 +88,8 @@ Route::get('/webmail/img', [MailController::class, 'img'])
 Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
     Route::get('/people',         [\App\Http\Controllers\PeopleController::class, 'index']);
     Route::get('/contacts',       [\App\Http\Controllers\ContactsController::class, 'index']);
+    // Autocomplete style O365 pour le composer webmail
+    Route::get('/api/contacts/suggest', [\App\Http\Controllers\ContactsController::class, 'suggest']);
     Route::post('/contacts',      [\App\Http\Controllers\ContactsController::class, 'store']);
     Route::patch('/contacts/{id}', [\App\Http\Controllers\ContactsController::class, 'update'])->whereNumber('id');
     Route::delete('/contacts/{id}',[\App\Http\Controllers\ContactsController::class, 'destroy'])->whereNumber('id');

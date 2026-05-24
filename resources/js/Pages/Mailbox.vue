@@ -815,38 +815,54 @@
           </Transition>
         </div>
         <div class="p-5 space-y-2.5 overflow-y-auto">
-          <!-- Destinataires (À) en chips -->
-          <div :class="chipCls" @click="$refs.toInput.focus()">
-            <span class="text-xs font-bold text-gray-400 shrink-0 mt-1">À</span>
-            <span v-for="(c, i) in compose.to" :key="'to'+i"
-                  :class="['chip', validEmail(c) ? 'chip-ok' : 'chip-bad']">
-              {{ c }}
-              <button type="button" @click.stop="compose.to.splice(i, 1)"
-                class="chip-x">×</button>
-            </span>
-            <input ref="toInput" v-model="toDraft" type="text"
-              :placeholder="compose.to.length ? '' : 'Tape une adresse puis Entrée'"
-              @keydown="onChipKey($event, compose.to, 'toDraft')"
-              @blur="commitChip(compose.to, 'toDraft')"
-              @paste="onChipPaste($event, compose.to, 'toDraft')"
-              class="flex-1 min-w-[160px] outline-none border-0 bg-transparent text-sm py-1"/>
+          <!-- Destinataires (À) en chips + autocomplete style O365 -->
+          <div class="relative">
+            <div :class="chipCls" @click="$refs.toInput.focus()">
+              <span class="text-xs font-bold text-gray-400 shrink-0 mt-1">À</span>
+              <span v-for="(c, i) in compose.to" :key="'to'+i"
+                    :class="['chip', validEmail(c) ? 'chip-ok' : 'chip-bad']">
+                {{ c }}
+                <button type="button" @click.stop="compose.to.splice(i, 1)"
+                  class="chip-x">×</button>
+              </span>
+              <input ref="toInput" v-model="toDraft" type="text"
+                :placeholder="compose.to.length ? '' : 'Tape un nom ou une adresse…'"
+                @input="onSuggestInput('to', $event.target.value)"
+                @keydown="onSuggestKey($event, 'to', compose.to, 'toDraft')"
+                @blur="onSuggestBlur('to', compose.to, 'toDraft')"
+                @paste="onChipPaste($event, compose.to, 'toDraft')"
+                class="flex-1 min-w-[160px] outline-none border-0 bg-transparent text-sm py-1"
+                autocomplete="off"/>
+            </div>
+            <SuggestPopup v-if="suggestField === 'to' && suggestItems.length"
+              :items="suggestItems" :active="suggestActive"
+              @pick="pickSuggest('to', compose.to, 'toDraft', $event)"
+              @hover="suggestActive = $event"/>
           </div>
 
-          <!-- Destinataires (Cc) en chips -->
-          <div :class="chipCls" @click="$refs.ccInput.focus()">
-            <span class="text-xs font-bold text-gray-400 shrink-0 mt-1">Cc</span>
-            <span v-for="(c, i) in compose.cc" :key="'cc'+i"
-                  :class="['chip', validEmail(c) ? 'chip-ok' : 'chip-bad']">
-              {{ c }}
-              <button type="button" @click.stop="compose.cc.splice(i, 1)"
-                class="chip-x">×</button>
-            </span>
-            <input ref="ccInput" v-model="ccDraft" type="text"
-              :placeholder="compose.cc.length ? '' : 'Cc (optionnel)'"
-              @keydown="onChipKey($event, compose.cc, 'ccDraft')"
-              @blur="commitChip(compose.cc, 'ccDraft')"
-              @paste="onChipPaste($event, compose.cc, 'ccDraft')"
-              class="flex-1 min-w-[160px] outline-none border-0 bg-transparent text-sm py-1"/>
+          <!-- Destinataires (Cc) en chips + autocomplete -->
+          <div class="relative">
+            <div :class="chipCls" @click="$refs.ccInput.focus()">
+              <span class="text-xs font-bold text-gray-400 shrink-0 mt-1">Cc</span>
+              <span v-for="(c, i) in compose.cc" :key="'cc'+i"
+                    :class="['chip', validEmail(c) ? 'chip-ok' : 'chip-bad']">
+                {{ c }}
+                <button type="button" @click.stop="compose.cc.splice(i, 1)"
+                  class="chip-x">×</button>
+              </span>
+              <input ref="ccInput" v-model="ccDraft" type="text"
+                :placeholder="compose.cc.length ? '' : 'Cc (optionnel)'"
+                @input="onSuggestInput('cc', $event.target.value)"
+                @keydown="onSuggestKey($event, 'cc', compose.cc, 'ccDraft')"
+                @blur="onSuggestBlur('cc', compose.cc, 'ccDraft')"
+                @paste="onChipPaste($event, compose.cc, 'ccDraft')"
+                class="flex-1 min-w-[160px] outline-none border-0 bg-transparent text-sm py-1"
+                autocomplete="off"/>
+            </div>
+            <SuggestPopup v-if="suggestField === 'cc' && suggestItems.length"
+              :items="suggestItems" :active="suggestActive"
+              @pick="pickSuggest('cc', compose.cc, 'ccDraft', $event)"
+              @hover="suggestActive = $event"/>
           </div>
 
           <input v-model="compose.subject" type="text" placeholder="Objet" :class="inputCls"/>
@@ -1414,6 +1430,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import SuggestPopup from '../Components/SuggestPopup.vue';
 
 /** Logout via POST (la route GET a été retirée — CSRF safety). */
 function logout() { router.post('/logout'); }
@@ -2074,6 +2091,89 @@ function onChipPaste(e, list, draftKey) {
     (draftKey === 'toDraft' ? toDraft : ccDraft).value = txt;
     commitChip(list, draftKey);
   }
+}
+
+/* ── Autocomplete style O365 (To/Cc) ── */
+const suggestField = ref(null);     // 'to' | 'cc' | null
+const suggestItems = ref([]);
+const suggestActive = ref(0);
+let suggestTimer = null;
+let suggestSeq = 0;
+
+function onSuggestInput(field, value) {
+  // Debounce 120ms
+  if (suggestTimer) clearTimeout(suggestTimer);
+  const q = (value || '').trim();
+  if (q.length < 1 || q.includes('@') && q.endsWith(' ')) {
+    suggestField.value = null;
+    suggestItems.value = [];
+    return;
+  }
+  suggestTimer = setTimeout(() => {
+    const seq = ++suggestSeq;
+    fetch('/api/contacts/suggest?q=' + encodeURIComponent(q), {
+      credentials: 'same-origin',
+      headers: { 'Accept': 'application/json' },
+    })
+      .then((r) => r.ok ? r.json() : { items: [] })
+      .then((j) => {
+        if (seq !== suggestSeq) return; // résultats obsolètes
+        suggestItems.value = j.items || [];
+        suggestField.value = suggestItems.value.length ? field : null;
+        suggestActive.value = 0;
+      })
+      .catch(() => { suggestItems.value = []; suggestField.value = null; });
+  }, 120);
+}
+
+function pickSuggest(field, list, draftKey, item) {
+  if (!list.includes(item.email)) list.push(item.email);
+  (draftKey === 'toDraft' ? toDraft : ccDraft).value = '';
+  suggestField.value = null;
+  suggestItems.value = [];
+  // Refocus pour enchaîner
+  setTimeout(() => {
+    const ref = draftKey === 'toDraft' ? 'toInput' : 'ccInput';
+    document.querySelector(`input[ref="${ref}"]`)?.focus?.();
+  }, 0);
+}
+
+function onSuggestKey(e, field, list, draftKey) {
+  if (suggestField.value === field && suggestItems.value.length) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      suggestActive.value = (suggestActive.value + 1) % suggestItems.value.length;
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      suggestActive.value = (suggestActive.value - 1 + suggestItems.value.length) % suggestItems.value.length;
+      return;
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      pickSuggest(field, list, draftKey, suggestItems.value[suggestActive.value]);
+      return;
+    }
+    if (e.key === 'Escape') {
+      suggestField.value = null;
+      suggestItems.value = [];
+      return;
+    }
+  }
+  // Sinon : comportement chip classique (Entrée valide adresse brute)
+  onChipKey(e, list, draftKey);
+}
+
+function onSuggestBlur(field, list, draftKey) {
+  // Délai pour laisser le @click du popup gagner
+  setTimeout(() => {
+    if (suggestField.value === field) {
+      suggestField.value = null;
+      suggestItems.value = [];
+    }
+    commitChip(list, draftKey);
+  }, 150);
 }
 
 /* ── Brouillons : auto-save toutes les 5 s ── */

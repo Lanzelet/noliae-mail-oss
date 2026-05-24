@@ -26,6 +26,50 @@ class ContactsController extends Controller
         return $ctx;
     }
 
+    /**
+     * GET /api/contacts/suggest?q=foo
+     *
+     * Autocomplete pour compose webmail (style O365). Cherche dans le carnet
+     * d'adresses de l'orga (membres + manuels) par prefix sur display_name OU
+     * email. Retourne max 10 résultats triés (membres d'abord, puis manuels,
+     * puis alpha). Format JSON minimal pour rester rapide.
+     */
+    public function suggest(Request $request)
+    {
+        $ctx = $this->orgOrFail($request);
+        $q = trim((string) $request->query('q', ''));
+        if (mb_strlen($q) < 1) {
+            return response()->json(['items' => []]);
+        }
+        // Resync passive — bon marché et garantit que les nouveaux comptes
+        // mail apparaissent immédiatement dans l'autocomplete.
+        $this->syncMembers($ctx['org']->id);
+
+        $like = '%' . str_replace('%', '\\%', $q) . '%';
+        $items = DB::table('organization_contacts')
+            ->where('organization_id', $ctx['org']->id)
+            ->where(function ($w) use ($like) {
+                $w->whereRaw('LOWER(email) LIKE LOWER(?)', [$like])
+                  ->orWhereRaw('LOWER(COALESCE(display_name, \'\')) LIKE LOWER(?)', [$like])
+                  ->orWhereRaw('LOWER(COALESCE(company, \'\')) LIKE LOWER(?)', [$like]);
+            })
+            ->orderByRaw("CASE source WHEN 'member' THEN 0 WHEN 'manual' THEN 1 ELSE 2 END")
+            ->orderBy('display_name')
+            ->orderBy('email')
+            ->limit(10)
+            ->get(['email', 'display_name', 'company', 'source'])
+            ->map(function ($c) {
+                return [
+                    'email'        => $c->email,
+                    'display_name' => $c->display_name,
+                    'company'      => $c->company,
+                    'source'       => $c->source,
+                    'avatar_hash'  => md5(strtolower($c->email)),
+                ];
+            })->values();
+        return response()->json(['items' => $items]);
+    }
+
     public function index(Request $request)
     {
         $ctx = $this->orgOrFail($request);
