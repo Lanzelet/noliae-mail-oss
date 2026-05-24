@@ -6,6 +6,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libzip-dev libonig-dev libpq-dev libpng-dev libjpeg-dev libfreetype6-dev \
         libicu-dev pkg-config \
         unzip gnupg gnupg-agent gpg ca-certificates curl \
+        perl libio-socket-ssl-perl libnet-ssleay-perl \
+        libdigest-hmac-perl libterm-readkey-perl libfile-copy-recursive-perl \
+        libmail-imapclient-perl libdata-uniqid-perl libdist-checkconflicts-perl \
+        libjson-perl libjson-webtoken-perl libtest-fatal-perl libtest-mockmodule-perl \
+        libtest-pod-perl libtest-requires-perl libunicode-string-perl libregexp-common-perl \
+        libio-tee-perl libfile-tail-perl libsys-meminfo-perl libio-compress-perl libfile-touch-perl \
  && docker-php-ext-configure gd --with-freetype --with-jpeg \
  && docker-php-ext-install zip mbstring opcache bcmath sockets pdo_pgsql gd intl \
  && pecl install redis && docker-php-ext-enable redis \
@@ -29,6 +35,11 @@ RUN { \
       echo 'opcache.max_accelerated_files=10000'; \
       echo 'opcache.validate_timestamps=0'; \
     } > /usr/local/etc/php/conf.d/mail-oss.ini
+
+# imapsync (script Perl single-file depuis GitHub) pour la migration admin
+RUN curl -fsSL https://raw.githubusercontent.com/imapsync/imapsync/master/imapsync \
+      -o /usr/local/bin/imapsync \
+ && chmod +x /usr/local/bin/imapsync
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

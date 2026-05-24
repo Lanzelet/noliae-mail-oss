@@ -41,6 +41,8 @@ const tabs = [
   { label: 'Forwards',        href: '/admin/aliases' },
   { label: 'Listes',          href: '/admin/lists' },
   { label: 'Partagées',       href: '/admin/shared' },
+  { label: 'Migrations',      href: '/admin/migrations' },
+  { label: 'Anti-spam',       href: '/admin/rspamd' },
   { label: 'Paramètres',      href: '/admin/settings' },
   { label: 'Audit',           href: '/admin/audit' },
 ];

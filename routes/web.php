@@ -102,6 +102,13 @@ Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->prefix('admin')->g
     Route::get('/settings',                 [AdminController::class, 'settings']);
     Route::post('/settings',                [AdminController::class, 'saveSettings']);
     Route::get('/audit',                    [AdminController::class, 'auditLog']);
+    Route::get('/rspamd',                   [AdminController::class, 'rspamd']);
+
+    // Migrations IMAP (imapsync)
+    Route::get('/migrations',               [AdminController::class, 'migrations']);
+    Route::post('/migrations',              [AdminController::class, 'startMigration']);
+    Route::post('/migrations/{id}/cancel',  [AdminController::class, 'cancelMigration'])->whereNumber('id');
+    Route::get('/migrations/{id}/log',      [AdminController::class, 'migrationLog'])->whereNumber('id');
 });
 
 Route::get('/up', fn () => response('OK'));

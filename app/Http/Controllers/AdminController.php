@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Services\AppSettings;
 use App\Services\AuditLog;
+use App\Services\ImapMigrationRunner;
+use App\Services\RspamdClient;
+use Illuminate\Support\Facades\Crypt;
 use Inertia\Inertia;
 
 /**
@@ -586,6 +589,122 @@ class AdminController extends Controller
         return back()->with('success', 'Paramètres enregistrés.');
     }
 
+
+    /* ──────────────── Migrations IMAP (imapsync) ──────────────── */
+
+    public function migrations(Request $request, ImapMigrationRunner $runner)
+    {
+        $this->authorize_admin($request);
+        // Refresh status des jobs en cours
+        DB::table('mail_migrations')->whereIn('status', ['pending', 'running'])
+            ->pluck('id')->each(fn ($id) => $runner->refreshStatus($id));
+
+        $migrations = DB::table('mail_migrations')
+            ->leftJoin('mail_accounts', 'mail_accounts.id', '=', 'mail_migrations.dest_account_id')
+            ->select('mail_migrations.*', 'mail_accounts.email as dest_email')
+            ->orderByDesc('mail_migrations.created_at')->limit(50)
+            ->get()->toArray();
+
+        $accounts = DB::table('mail_accounts')->where('active', true)
+            ->orderBy('email')->get(['id', 'email'])->toArray();
+
+        return Inertia::render('Admin/Migrations', [
+            'migrations'         => $migrations,
+            'accounts'           => $accounts,
+            'imapsync_available' => $runner->imapsyncAvailable(),
+        ]);
+    }
+
+    public function startMigration(Request $request, ImapMigrationRunner $runner)
+    {
+        $this->authorize_admin($request);
+        $data = $request->validate([
+            'source_host'     => 'required|string|max:253',
+            'source_port'     => 'required|integer|min:1|max:65535',
+            'source_ssl'      => 'required|boolean',
+            'source_user'     => 'required|string|max:320',
+            'source_pass'     => 'required|string|max:500',
+            'dest_account_id' => 'required|integer|exists:mail_accounts,id',
+        ]);
+
+        $id = DB::table('mail_migrations')->insertGetId([
+            'source_host'      => $data['source_host'],
+            'source_port'      => $data['source_port'],
+            'source_ssl'       => $data['source_ssl'],
+            'source_user'      => $data['source_user'],
+            'source_pass_enc'  => Crypt::encryptString($data['source_pass']),
+            'dest_account_id'  => $data['dest_account_id'],
+            'status'           => 'pending',
+            'created_at'       => now(),
+            'updated_at'       => now(),
+        ]);
+
+        $runner->start($id);
+        AuditLog::record($request, 'migration.start', $data['source_user'],
+            ['dest_account_id' => $data['dest_account_id'], 'source_host' => $data['source_host']]);
+
+        return redirect('/admin/migrations')->with('success', "Migration #$id démarrée.");
+    }
+
+    public function cancelMigration(Request $request, int $id, ImapMigrationRunner $runner)
+    {
+        $this->authorize_admin($request);
+        $runner->cancel($id);
+        AuditLog::record($request, 'migration.cancel', (string) $id);
+        return back()->with('success', 'Migration annulée.');
+    }
+
+    public function migrationLog(Request $request, int $id, ImapMigrationRunner $runner)
+    {
+        $this->authorize_admin($request);
+        $runner->refreshStatus($id);
+        $job = DB::table('mail_migrations')->where('id', $id)->first();
+        abort_unless($job, 404);
+        return response()->json([
+            'status'  => $job->status,
+            'copied'  => $job->copied_messages,
+            'total'   => $job->total_messages,
+            'log'     => $job->log_tail,
+            'error'   => $job->error,
+        ]);
+    }
+
+    /* ──────────────── Rspamd metrics ──────────────── */
+
+    public function rspamd(Request $request, RspamdClient $r)
+    {
+        $this->authorize_admin($request);
+        return Inertia::render('Admin/Rspamd', [
+            'available' => $r->available(),
+            'stat'      => $r->get('/stat'),
+            'actions'   => $r->get('/actions'),
+            'history'   => $r->get('/history')['rows'] ?? [],
+            'errors'    => $r->get('/errors')['errors'] ?? [],
+            'symbols'   => $this->topSymbols($r),
+            'rspamd_url' => env('RSPAMD_URL', 'http://127.0.0.1:11334'),
+        ]);
+    }
+
+    private function topSymbols(RspamdClient $r): array
+    {
+        $all = $r->get('/symbols') ?? [];
+        // L'API renvoie un dict de groupes -> liste de symboles avec score moyen.
+        // On extrait les 30 symboles avec le frequency.weight le plus eleve.
+        $flat = [];
+        foreach ($all as $group => $items) {
+            if (! is_array($items)) continue;
+            foreach ($items['rules'] ?? [] as $rule) {
+                $flat[] = [
+                    'name'   => $rule['symbol'] ?? '',
+                    'group'  => $group,
+                    'weight' => (float) ($rule['weight'] ?? 0),
+                    'desc'   => $rule['description'] ?? '',
+                ];
+            }
+        }
+        usort($flat, fn ($a, $b) => abs($b['weight']) <=> abs($a['weight']));
+        return array_slice($flat, 0, 30);
+    }
 
     /* ──────────────── Audit log ──────────────── */
 
