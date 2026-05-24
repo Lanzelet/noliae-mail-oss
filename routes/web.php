@@ -32,7 +32,14 @@ Route::get('/logout', [AuthController::class, 'logoutConfirm']);
 
 // Avatar : public + cacheable (sert l'image ou un SVG d'initiales).
 Route::get('/webmail/avatar/{hash}', [\App\Http\Controllers\AccountController::class, 'serveAvatar'])
-    ->where('hash', '[a-f0-9]{32}');
+    ->where('hash', '[a-f0-9]{32}')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+    ]);
 
 Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
     // Espace utilisateur : mot de passe, 2FA, tokens SMTP, avatar
@@ -86,7 +93,9 @@ Route::get('/webmail/img', [MailController::class, 'img'])
     ->withoutMiddleware([
         \Illuminate\Session\Middleware\StartSession::class,
         \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
     ]);
 
 // Annuaire de l'organisation + carnet d'adresses partagé (tous membres).

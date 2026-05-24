@@ -15,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
         $middleware->validateCsrfTokens(except: [
             'api/v1/mail/*',
+            'webmail/img',      // proxy d'image HMAC-signé, pas de session
+            'webmail/avatar/*', // SVG/PNG avatars publics
         ]);
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
