@@ -83,7 +83,12 @@ class AuthController extends Controller
         ]);
     }
 
-    /** POST /login — protégé par throttle + constant-time + dummy hash + challenge 2FA si activé. */
+    /**
+     * POST /login — protégé par :
+     *  - LoginRateLimiter brute-force (3 axes : UNKNOWN ip, ACCOUNT email, IP)
+     *  - constant-time + dummy hash (timing attack)
+     *  - challenge 2FA si TOTP activé
+     */
     public function login(Request $request)
     {
         $data = $request->validate([
@@ -91,12 +96,34 @@ class AuthController extends Controller
             'password' => 'required|string|max:200',
         ]);
         $email = strtolower(trim($data['email']));
+
+        // ─── 1. Pre-check rate-limit (avant tout calcul lourd) ───
+        $rl = \App\Services\LoginRateLimiter::check($request, $email);
+        if ($rl['blocked']) {
+            return back()->withErrors([
+                'email' => $this->rateLimitMessage($rl),
+            ]);
+        }
+
         $row = DB::table('mail_accounts')->where('email', $email)->where('active', true)->first();
         $stored = $row->password ?? '{BLF-CRYPT}$2y$12$invalidhashplaceholderXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+        // verifyPassword toujours appelé (constant-time vs énumération)
         $ok = $this->verifyPassword($data['password'], $stored);
-        if (! $row || ! $ok) {
+
+        if (! $row) {
+            // Compte inexistant → compteur UNKNOWN(ip)
+            \App\Services\LoginRateLimiter::hitUnknown($request);
             return back()->withErrors(['email' => 'Identifiants invalides.']);
         }
+        if (! $ok) {
+            // Compte existant mais mauvais password → compteur ACCOUNT + IP
+            \App\Services\LoginRateLimiter::hitWrongPassword($request, $email);
+            return back()->withErrors(['email' => 'Identifiants invalides.']);
+        }
+
+        // ─── 2. Login OK : reset des compteurs ACCOUNT + IP ───
+        \App\Services\LoginRateLimiter::clearOnSuccess($request, $email);
+
         // Si 2FA activé : on garde le user en "pending_2fa" et on demande le code.
         if (! empty($row->totp_enabled)) {
             $request->session()->put('pending_2fa_email', $email);
@@ -106,6 +133,21 @@ class AuthController extends Controller
         $request->session()->put('mail_user', $email);
         $request->session()->put('mail_name', $row->display_name ?? '');
         return redirect('/webmail');
+    }
+
+    /** Message utilisateur friendly pour un blocage rate-limit. */
+    private function rateLimitMessage(array $rl): string
+    {
+        $secs = max(1, (int) ($rl['retry_in'] ?? 60));
+        $when = $secs >= 60
+            ? sprintf('%d min %02d s', intdiv($secs, 60), $secs % 60)
+            : sprintf('%d s', $secs);
+        return match ($rl['reason']) {
+            'too_many_unknown' => "Trop de tentatives sur des comptes inexistants depuis cette IP. Réessaie dans $when.",
+            'account_locked'   => "Ce compte est temporairement bloqué (mots de passe erronés). Réessaie dans $when.",
+            'ip_locked'        => "Trop d'échecs depuis ton IP. Réessaie dans $when.",
+            default            => "Trop de tentatives. Réessaie dans $when.",
+        };
     }
 
     /** GET /login/2fa — formulaire challenge TOTP. */
@@ -120,6 +162,15 @@ class AuthController extends Controller
     {
         $email = (string) $request->session()->get('pending_2fa_email');
         if (! $email) return redirect('/login');
+
+        // Même rate-limit que pour le mot de passe : 3 codes TOTP erronés
+        // sur ce compte → block 5 min + IP block 10 min.
+        $rl = \App\Services\LoginRateLimiter::check($request, $email);
+        if ($rl['blocked']) {
+            $request->session()->forget('pending_2fa_email');
+            return redirect('/login')->withErrors(['email' => $this->rateLimitMessage($rl)]);
+        }
+
         $data = $request->validate(['code' => 'required|string|max:25']);
         $row = DB::table('mail_accounts')->where('email', $email)->first();
         if (! $row || ! $row->totp_secret) return redirect('/login');
@@ -149,8 +200,12 @@ class AuthController extends Controller
         }
 
         if (! $ok) {
+            // Code TOTP invalide = même poids qu'un mauvais password
+            \App\Services\LoginRateLimiter::hitWrongPassword($request, $email);
             return back()->withErrors(['code' => 'Code invalide ou expiré.']);
         }
+        // TOTP OK : on reset les compteurs
+        \App\Services\LoginRateLimiter::clearOnSuccess($request, $email);
         $request->session()->forget('pending_2fa_email');
         $request->session()->regenerate();
         $request->session()->put('mail_user', $email);
