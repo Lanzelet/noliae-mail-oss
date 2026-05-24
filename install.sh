@@ -111,6 +111,7 @@ SED_INPLACE="-i.bak"
 
 sed $SED_INPLACE \
   -e "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" \
+  -e "s|^APP_URL=.*|APP_URL=https://${MAIL_DOMAIN}|" \
   -e "s|^MAIL_DOMAIN=.*|MAIL_DOMAIN=${MAIL_DOMAIN}|" \
   -e "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${ADMIN_EMAIL}|" \
   -e "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${ADMIN_PASSWORD}|" \
