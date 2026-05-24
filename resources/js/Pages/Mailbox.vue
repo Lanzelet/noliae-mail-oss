@@ -1873,6 +1873,8 @@ function brandDomain(email) {
 function isBrand(email) {
   const d = brandDomain(email);
   if (!d || PERSONAL_DOMAINS.has(d)) return false;
+  // Tous les domaines gouvernementaux français + européens
+  if (/\.gouv\.fr$/.test(d) || /\.gov$/.test(d) || /\.europa\.eu$/.test(d)) return true;
   return VERIFIED_BRANDS.some(b => d === b.replace(/\.$/, '') || d.includes(b));
 }
 function onLogoError(e, email) {
