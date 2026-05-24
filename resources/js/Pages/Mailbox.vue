@@ -3064,10 +3064,20 @@ function gotoPage(p) {
 }
 function openMessage(uid) {
   moveOpen.value = false; drawerOpen.value = false;
-  router.get('/webmail', { folder: props.folder, uid }, { preserveScroll: true });
+  router.get('/webmail', {
+    folder: props.folder, uid,
+    page: props.page > 1 ? props.page : undefined,
+    per_page: props.per_page !== 40 ? props.per_page : undefined,
+    q: props.search || undefined,
+  }, { preserveScroll: true });
 }
 function backToList() {
-  router.get('/webmail', { folder: props.folder }, { preserveScroll: true });
+  router.get('/webmail', {
+    folder: props.folder,
+    page: props.page > 1 ? props.page : undefined,
+    per_page: props.per_page !== 40 ? props.per_page : undefined,
+    q: props.search || undefined,
+  }, { preserveScroll: true });
 }
 
 /* ── Gestion des dossiers ── */
