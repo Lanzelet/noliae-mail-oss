@@ -100,10 +100,16 @@ class SendService
             $text = ' ';
         }
 
-        // 3. Construction MANUELLE des parts en 8bit (au lieu du QP par défaut)
-        //    → la source brute du mail reste lisible (UTF-8 direct, plus de =C3=A9).
+        // 3. Construction MANUELLE des parts :
+        //    - text/plain en 8bit : reste lisible en raw UTF-8, lignes courtes
+        //    - text/html en quoted-printable : OBLIGATOIRE car les URLs
+        //      signées S3 dépassent les 998 chars/ligne (RFC 5321). En 8bit,
+        //      Postfix doit forcer un CRLF+SPACE quelque part dans la ligne
+        //      ('breaking line > 998 bytes') et ce SPACE atterrit dans
+        //      l'URL → liens cassés style 's3.oss.noliae.c om/…'. QP utilise
+        //      des soft-breaks '=\r\n' invisibles côté client.
         $textPart = new TextPart($text, 'utf-8', 'plain', '8bit');
-        $htmlPart = new TextPart($html, 'utf-8', 'html',  '8bit');
+        $htmlPart = new TextPart($html, 'utf-8', 'html',  'quoted-printable');
         $alt      = new AlternativePart($textPart, $htmlPart);
 
         $parts = [$alt];
