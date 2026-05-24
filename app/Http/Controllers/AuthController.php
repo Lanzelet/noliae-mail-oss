@@ -117,6 +117,31 @@ class AuthController extends Controller
         return redirect('/');
     }
 
+    /**
+     * GET /logout — page intermédiaire qui POST automatiquement.
+     * On garde l'URL bookmarkable / partageable sans réintroduire la vulnérabilité
+     * CSRF logout (un <img src=/logout> distant n'exécutera pas le JS).
+     */
+    public function logoutConfirm(Request $request)
+    {
+        if (! $request->session()->get('mail_user')) {
+            return redirect('/');
+        }
+        $token = csrf_token();
+        return response('<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Déconnexion…</title>'
+            . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            . '<style>body{font-family:system-ui,sans-serif;background:#15151a;color:#FAFAF7;'
+            . 'display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}'
+            . '.box{text-align:center;padding:2rem}.btn{display:inline-block;padding:.75rem 1.5rem;'
+            . 'border-radius:999px;background:#FF4D2E;color:#fff;font-weight:700;border:0;cursor:pointer;font-size:14px}'
+            . '.btn:hover{background:#df3c1f}</style></head><body><div class="box">'
+            . '<p style="margin-bottom:1rem">Confirmer la déconnexion ?</p>'
+            . '<form method="POST" action="/logout">'
+            . '<input type="hidden" name="_token" value="' . htmlspecialchars($token, ENT_QUOTES) . '">'
+            . '<button class="btn" type="submit" autofocus>Se déconnecter</button>'
+            . '</form><script>document.forms[0].submit()</script></div></body></html>');
+    }
+
     /** Accepte {BLF-CRYPT}$2y$… ou {SHA512-CRYPT}… ou {PLAIN}… */
     private function verifyPassword(string $plain, string $stored): bool
     {

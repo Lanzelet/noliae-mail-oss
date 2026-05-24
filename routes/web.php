@@ -16,9 +16,13 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 // Rate-limit : 3 inscriptions / minute / IP.
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
-// Logout POST uniquement (CSRF) — on retire l'ancien GET /logout
-// qui permettait un déloggage via <img src=/logout>.
+// Logout :
+//  - POST /logout : action réelle (CSRF-safe via token Inertia)
+//  - GET /logout : page intermédiaire avec form POST auto-submit
+//    (permet d'être bookmark / tapé directement sans réintroduire le bug
+//    CSRF logout via <img src=/logout> qui ne déclenche pas le POST).
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::get('/logout', [AuthController::class, 'logoutConfirm']);
 
 Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
     Route::get('/webmail', [MailController::class, 'index']);
