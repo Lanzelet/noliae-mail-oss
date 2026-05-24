@@ -74,13 +74,19 @@ class AdminController extends Controller
         if (DB::table('mail_domains')->where('name', $name)->exists()) {
             return back()->withErrors(['name' => 'Ce domaine existe déjà.']);
         }
+        // Rattache à l'organisation de l'admin courant. Le contexte est posé
+        // par EnsureAdmin middleware ; fallback : 1ère orga par défaut.
+        $ctx = $request->attributes->get('org_ctx') ?? \App\Services\OrgContext::current($request);
+        $orgId = $ctx['org']?->id ?? DB::table('organizations')->min('id');
+
         DB::table('mail_domains')->insert([
-            'name'       => $name,
-            'active'     => true,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'name'            => $name,
+            'active'          => true,
+            'organization_id' => $orgId,
+            'created_at'      => now(),
+            'updated_at'      => now(),
         ]);
-        AuditLog::record($request, 'domain.create', $name);
+        AuditLog::record($request, 'domain.create', $name, ['organization_id' => $orgId]);
         return redirect('/admin/domains')->with('success', "Domaine $name ajouté.");
     }
 
