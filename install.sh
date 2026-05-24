@@ -1,8 +1,14 @@
 #!/bin/bash
-# Noliae Mail OSS — installation interactive.
+# Noliae Mail OSS — installation interactive 100% automatique.
 #
-# Génère .env (tous les secrets), lance la stack, affiche les records DNS
-# à publier + récupère la clé DKIM réelle (générée par Postfix au boot).
+# 1. Génère .env (tous les secrets aléatoires forts)
+# 2. Build les 4 images Docker (web / postfix / dovecot / rspamd)
+# 3. Démarre la stack
+# 4. Attend que Postfix génère la clé DKIM
+# 5. Récupère la vraie clé DKIM et l'injecte dans DNS-RECORDS.txt
+# 6. Affiche les identifiants admin + tous les records DNS à publier
+#
+# Usage : ./install.sh
 set -e
 
 cd "$(dirname "$0")"
@@ -12,6 +18,7 @@ c_green()  { printf "\033[32m%s\033[0m" "$*"; }
 c_yellow() { printf "\033[33m%s\033[0m" "$*"; }
 c_bold()   { printf "\033[1m%s\033[0m"  "$*"; }
 c_cyan()   { printf "\033[36m%s\033[0m" "$*"; }
+step()     { echo ""; c_bold "▶ $*"; echo ""; }
 
 echo ""
 echo "  ╔══════════════════════════════════════════════════╗"
@@ -20,14 +27,22 @@ echo "  ╚═══════════════════════
 echo ""
 
 # ── 1. Vérifs prérequis ─────────────────────────────────────────────
+step "1/8 · Vérification des prérequis"
 for cmd in docker openssl curl; do
   if ! command -v $cmd >/dev/null 2>&1; then
     c_red "✗ $cmd manquant. Installe-le d'abord.\n"; exit 1
   fi
+  c_green "  ✓ $cmd\n"
 done
 docker compose version >/dev/null 2>&1 || { c_red "✗ docker compose v2 requis.\n"; exit 1; }
+c_green "  ✓ docker compose v2\n"
 
-# ── 2. .env ─────────────────────────────────────────────────────────
+# Vérifie qu'on est dans le repo
+[ -f docker-compose.yml ] && [ -f .env.example ] || {
+  c_red "✗ Lance ce script depuis la racine du repo noliae-mail-oss.\n"; exit 1; }
+
+# ── 2. Prompts utilisateur ──────────────────────────────────────────
+step "2/8 · Configuration"
 if [ -f .env ]; then
   read -p "$(c_yellow ".env existe déjà. Écraser ? (oui/NON) : ")" overwrite
   [ "$overwrite" = "oui" ] || { echo "Abandon."; exit 0; }
@@ -51,6 +66,7 @@ read -p "$(c_bold "Autoriser inscriptions publiques ? (oui/NON) : ")" ALLOW_REG
 [ "$ALLOW_REG" = "oui" ] && ALLOW_REGISTRATION=true || ALLOW_REGISTRATION=false
 
 # ── 3. Génère TOUS les secrets ──────────────────────────────────────
+step "3/8 · Génération des secrets aléatoires"
 gen_secret() { openssl rand -base64 32 | tr -d '/+=' | head -c 40; }
 DB_PASSWORD=$(gen_secret)
 MAIL_MASTER_PASS=$(gen_secret)
@@ -58,10 +74,9 @@ MINIO_ROOT_PASSWORD=$(gen_secret)
 POSTFIX_QUEUE_TOKEN=$(openssl rand -hex 32)
 RSPAMD_PASSWORD=$(gen_secret)
 APP_KEY="base64:$(openssl rand -base64 32)"
+c_green "  ✓ APP_KEY + 5 secrets générés\n"
 
 cp .env.example .env
-
-# sed compatible BSD (macOS) + GNU (Linux) via backup suffix puis suppression
 SED_INPLACE="-i.bak"
 
 sed $SED_INPLACE \
@@ -79,14 +94,57 @@ sed $SED_INPLACE \
   .env
 rm -f .env.bak
 
-# Garantit que MAIL_TRUSTED_NETS reste quoté (sinon Dotenv plante sur les espaces)
+# MAIL_TRUSTED_NETS doit être quoté (sinon Dotenv plante sur les espaces)
 grep -q '^MAIL_TRUSTED_NETS="' .env || \
   sed $SED_INPLACE 's|^MAIL_TRUSTED_NETS=\(.*\)|MAIL_TRUSTED_NETS="\1"|' .env
 rm -f .env.bak
 
-c_green "✓ .env généré avec secrets aléatoires forts\n"
+c_green "  ✓ .env écrit\n"
 
-# ── 4. IP publique + records DNS ────────────────────────────────────
+# ── 4. Build des images Docker ──────────────────────────────────────
+step "4/8 · Build des images Docker (~5 min, patience)"
+docker compose build 2>&1 | grep -E '^(#[0-9]+ \[)|^ ✔|^ ✘|^FAILED|^ERROR' | tail -20 || true
+docker compose build || { c_red "\n✗ Build échoué. Vérifie les logs ci-dessus.\n"; exit 1; }
+c_green "  ✓ 4 images buildées (web · postfix · dovecot · rspamd)\n"
+
+# ── 5. Démarrage de la stack ────────────────────────────────────────
+step "5/8 · Démarrage de la stack"
+docker compose up -d
+c_green "  ✓ Containers démarrés\n"
+
+echo -n "  Attente Postgres healthy "
+for i in $(seq 1 60); do
+  if docker compose ps postgres --format json 2>/dev/null | grep -q '"Health":"healthy"'; then
+    c_green "OK\n"; break
+  fi
+  echo -n "."; sleep 2
+done
+
+# ── 6. Attente génération clé DKIM par Postfix ──────────────────────
+step "6/8 · Attente génération clé DKIM (opendkim-genkey au boot Postfix)"
+DKIM_TXT_FILE="/etc/opendkim/keys/${MAIL_DOMAIN}/mail.txt"
+echo -n "  "
+for i in $(seq 1 30); do
+  if docker compose exec -T postfix test -f "${DKIM_TXT_FILE}" 2>/dev/null; then
+    c_green "OK\n"; break
+  fi
+  echo -n "."; sleep 2
+done
+
+DKIM_RAW=$(docker compose exec -T postfix cat "${DKIM_TXT_FILE}" 2>/dev/null || echo "")
+# Extrait la valeur "p=…" en concaténant toutes les sous-chaînes entre guillemets
+DKIM_VALUE=$(echo "$DKIM_RAW" | grep -oE '"[^"]+"' | tr -d '"' | tr -d '\n')
+
+if [ -z "$DKIM_VALUE" ]; then
+  c_yellow "  ⚠ Clé DKIM pas encore générée. Récupère-la plus tard avec :\n"
+  c_yellow "    docker compose exec postfix cat ${DKIM_TXT_FILE}\n"
+  DKIM_VALUE="<EXÉCUTE: docker compose exec postfix cat ${DKIM_TXT_FILE}>"
+else
+  c_green "  ✓ Clé DKIM 2048-bit récupérée\n"
+fi
+
+# ── 7. Génère DNS-RECORDS.txt avec la vraie clé DKIM ────────────────
+step "7/8 · Écriture DNS-RECORDS.txt"
 SERVER_IP=$(curl -s --max-time 5 https://api.ipify.org || echo "<ton-IP-publique>")
 
 cat > DNS-RECORDS.txt <<EOF
@@ -94,16 +152,8 @@ cat > DNS-RECORDS.txt <<EOF
 # Noliae Mail OSS — Records DNS à publier
 # Domaine : ${MAIL_DOMAIN}
 # Serveur : ${SERVER_IP}
+# Généré  : $(date -Iseconds)
 # ═══════════════════════════════════════════════════════════════════
-#
-# ⚠ Le record DKIM ci-dessous (mail._domainkey) est généré par Postfix
-#   au PREMIER démarrage du container. Lance la stack puis exécute :
-#
-#      docker compose exec postfix cat /etc/opendkim/keys/${MAIL_DOMAIN}/mail.txt
-#
-#   Copie le contenu de la parenthèse en valeur TXT (sans guillemets).
-#   Ou va dans l'admin panel : https://${MAIL_DOMAIN}/admin/domains
-#
 
 # ─── 1. Pointage du domaine vers ton serveur ──────────────────────
 ${MAIL_DOMAIN}.                  IN A      ${SERVER_IP}
@@ -118,18 +168,14 @@ ${MAIL_DOMAIN}.                  IN MX 10  ${MAIL_DOMAIN}.
 # ─── 4. SPF (autorise ce serveur à envoyer) ───────────────────────
 ${MAIL_DOMAIN}.                  IN TXT    "v=spf1 mx -all"
 
-# ─── 5. DKIM (à compléter après premier docker compose up -d) ─────
-# mail._domainkey.${MAIL_DOMAIN}.  IN TXT  "v=DKIM1; k=rsa; p=<VOIR docker compose exec postfix cat /etc/opendkim/keys/${MAIL_DOMAIN}/mail.txt>"
+# ─── 5. DKIM (clé 2048-bit générée par opendkim au premier boot) ──
+mail._domainkey.${MAIL_DOMAIN}.  IN TXT    "${DKIM_VALUE}"
 
 # ─── 6. DMARC (politique anti-spoofing) ───────────────────────────
 _dmarc.${MAIL_DOMAIN}.           IN TXT    "v=DMARC1; p=quarantine; rua=mailto:postmaster@${MAIL_DOMAIN}; ruf=mailto:postmaster@${MAIL_DOMAIN}; fo=1"
 
 # ─── 7. MTA-STS (force TLS en transit) ────────────────────────────
 _mta-sts.${MAIL_DOMAIN}.         IN TXT    "v=STSv1; id=$(date +%Y%m%d%H)"
-# Note : pour activer MTA-STS, il faut aussi servir une policy sur
-# https://mta-sts.${MAIL_DOMAIN}/.well-known/mta-sts.txt
-# Pas inclus dans la stack OSS par défaut — à mettre en place côté Traefik
-# si tu veux MTA-STS strict.
 
 # ─── 8. TLS-RPT (rapports d'erreur TLS) ───────────────────────────
 _smtp._tls.${MAIL_DOMAIN}.       IN TXT    "v=TLSRPTv1; rua=mailto:tls-reports@${MAIL_DOMAIN}"
@@ -140,38 +186,43 @@ _smtp._tls.${MAIL_DOMAIN}.       IN TXT    "v=TLSRPTv1; rua=mailto:tls-reports@$
 #   abuse@${MAIL_DOMAIN}          → ${ADMIN_EMAIL}
 #   tls-reports@${MAIL_DOMAIN}    → ${ADMIN_EMAIL}
 EOF
+c_green "  ✓ DNS-RECORDS.txt écrit\n"
 
-c_green "✓ Records DNS écrits dans DNS-RECORDS.txt\n"
+# ── 8. Smoke test ───────────────────────────────────────────────────
+step "8/8 · Smoke test"
+sleep 3
+WEB_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" -H "Host: ${MAIL_DOMAIN}" http://localhost 2>/dev/null || echo "—")
+echo "  HTTP local (web container)  : $(c_cyan "${WEB_STATUS}")"
+SMTP_BANNER=$(echo "QUIT" | nc -w 2 localhost 25 2>/dev/null | head -1 || echo "—")
+echo "  Banner SMTP local (port 25) : $(c_cyan "${SMTP_BANNER}")"
 
-# ── 5. Récap + next steps ───────────────────────────────────────────
+# ── Récap final ─────────────────────────────────────────────────────
 echo ""
 echo "  ╔══════════════════════════════════════════════════╗"
-echo "  ║                  ✓ TERMINÉ                       ║"
+echo "  ║              ✓ INSTALLATION OK                   ║"
 echo "  ╚══════════════════════════════════════════════════╝"
 echo ""
 c_bold "Identifiants admin\n"
 echo "  Email     : $(c_cyan "${ADMIN_EMAIL}")"
 if [ "$ADMIN_PASSWORD_GENERATED" = "1" ]; then
-  echo "  Password  : $(c_yellow "${ADMIN_PASSWORD}")  ← copie-le maintenant, plus jamais affiché"
+  echo "  Password  : $(c_yellow "${ADMIN_PASSWORD}")  ← $(c_red "copie-le maintenant, plus jamais affiché")"
 else
   echo "  Password  : $(c_yellow "<celui que tu as saisi>")"
 fi
+echo "  Login URL : $(c_cyan "https://${MAIL_DOMAIN}/login")"
 echo ""
-c_bold "Prochaines étapes\n"
-echo "  $(c_cyan 1.) Ouvre les ports : $(c_yellow "25 · 80 · 143 · 443 · 465 · 587 · 993")"
-echo "  $(c_cyan 2.) Configure le rDNS de $(c_yellow "${SERVER_IP}") → $(c_yellow "${MAIL_DOMAIN}")"
-echo "      (chez ton hébergeur, sinon les gros mailers refuseront tes mails)"
-echo "  $(c_cyan 3.) Build les images Docker (~5 min one-shot) :"
-echo "      $(c_yellow "docker compose build")"
-echo "  $(c_cyan 4.) Démarre la stack :"
-echo "      $(c_yellow "docker compose up -d")"
-echo "  $(c_cyan 5.) Récupère la clé DKIM réelle (générée par Postfix au boot) :"
-echo "      $(c_yellow "docker compose exec postfix cat /etc/opendkim/keys/${MAIL_DOMAIN}/mail.txt")"
-echo "      Ajoute la valeur TXT à ton DNS (cf $(c_yellow "DNS-RECORDS.txt") section 5)."
-echo "  $(c_cyan 6.) Publie les autres records DNS :"
-echo "      $(c_yellow "cat DNS-RECORDS.txt")"
-echo "  $(c_cyan 7.) Connecte-toi :"
-echo "      $(c_yellow "https://${MAIL_DOMAIN}/login")"
+c_bold "À faire MAINTENANT chez ton registrar DNS\n"
+echo "  1. Publie les records dans $(c_yellow "DNS-RECORDS.txt")"
+echo "     $(c_cyan "cat DNS-RECORDS.txt")"
+echo "  2. Configure le rDNS de $(c_yellow "${SERVER_IP}") → $(c_yellow "${MAIL_DOMAIN}")"
+echo "     (chez ton hébergeur, sinon les gros mailers refuseront tes mails)"
+echo "  3. Ouvre les ports : $(c_yellow "25 · 80 · 143 · 443 · 465 · 587 · 993")"
 echo ""
-c_yellow "⚠ Sauvegarde le .env (contient tous les secrets). Sans, pas de restore.\n"
+c_bold "Commandes utiles\n"
+echo "  Voir logs       : $(c_cyan "docker compose logs -f web postfix")"
+echo "  Status         : $(c_cyan "docker compose ps")"
+echo "  Restart web    : $(c_cyan "docker compose restart web")"
+echo "  Backup         : $(c_cyan "docker compose exec web /backups/backup.sh")"
+echo ""
+c_yellow "⚠ SAUVEGARDE le fichier .env (contient TOUS les secrets). Sans, pas de restore.\n"
 echo ""
