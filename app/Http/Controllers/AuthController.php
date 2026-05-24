@@ -36,6 +36,18 @@ class AuthController extends Controller
 
     public function showLogin(Request $request) { return $this->landing($request); }
 
+    /** GET /admin/login — page de connexion dédiée Admin Center (style OWA Admin). */
+    public function showAdminLogin(Request $request)
+    {
+        if ($request->session()->get('mail_user')) {
+            return redirect('/admin');
+        }
+        return Inertia::render('AdminLogin', [
+            'domain'      => config('mail.primary_domain'),
+            'org_name'    => \Illuminate\Support\Facades\DB::table('organizations')->value('name'),
+        ]);
+    }
+
     public function showRegister(Request $request)
     {
         if (! AppSettings::bool('allow_registration', false)) abort(403, 'Inscriptions désactivées par l\'administrateur.');

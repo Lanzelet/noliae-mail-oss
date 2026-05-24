@@ -1,243 +1,310 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100">
-    <!-- Header -->
-    <header class="bg-white dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 sticky top-0 z-10">
-      <div class="max-w-3xl mx-auto px-5 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <svg viewBox="0 0 140 100" class="h-6"><rect x="12" y="35" width="10" height="30" rx="5" fill="currentColor"/><rect x="30" y="25" width="10" height="50" rx="5" fill="currentColor"/><rect x="48" y="15" width="10" height="70" rx="5" fill="currentColor"/><rect x="66" y="22" width="10" height="56" rx="5" fill="#FF4D2E"/><rect x="84" y="20" width="10" height="60" rx="5" fill="currentColor"/><rect x="102" y="30" width="10" height="40" rx="5" fill="currentColor"/><rect x="120" y="35" width="10" height="30" rx="5" fill="currentColor"/></svg>
-          <span class="font-bold">Mon compte</span>
-        </div>
-        <div class="text-xs text-gray-500 flex items-center gap-4">
-          <span class="font-mono">{{ email }}</span>
-          <a href="/webmail" class="text-gray-600 hover:text-[#FF4D2E]">Webmail →</a>
-        </div>
+  <div class="min-h-screen bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 flex">
+    <!-- ── Sidebar OWA-style "Options" ── -->
+    <aside :class="['fixed lg:sticky top-0 inset-y-0 z-30 bg-white dark:bg-zinc-950 border-r border-gray-200 dark:border-zinc-800 transition-transform duration-200 ease-in-out',
+                    'w-64 flex flex-col h-screen overflow-y-auto', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0']">
+      <div class="px-5 py-4 border-b border-gray-100 dark:border-zinc-800">
+        <Link href="/webmail" class="flex items-center gap-2 text-[#FF4D2E] text-sm font-semibold hover:text-[#df3c1f]">
+          <span>←</span> Webmail
+        </Link>
+        <h2 class="font-black text-lg mt-2">Options</h2>
       </div>
-    </header>
-
-    <main class="max-w-3xl mx-auto px-5 py-8 space-y-5">
-      <!-- Flash -->
-      <div v-if="flash?.success" class="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{{ flash.success }}</div>
-
-      <!-- Profil -->
-      <section class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 shadow-sm">
-        <h2 class="font-bold mb-1 flex items-center gap-2">
-          <span class="w-7 h-7 rounded-lg bg-[#FF4D2E]/15 text-[#FF4D2E] flex items-center justify-center text-sm">👤</span>
-          Profil
-        </h2>
-        <p class="text-[11px] text-gray-500 mb-3">Tes infos visibles dans les mails envoyés.</p>
-        <div class="flex items-start gap-5">
-          <!-- Avatar -->
-          <div class="flex flex-col items-center gap-2">
-            <img :src="avatarSrc" alt="Avatar"
-                 class="w-20 h-20 rounded-full object-cover bg-gray-200 dark:bg-zinc-700 border border-gray-200 dark:border-zinc-700"/>
-            <div class="flex items-center gap-1">
-              <label class="px-2 py-1 text-[11px] font-semibold bg-[#FF4D2E]/10 text-[#FF4D2E] rounded-lg cursor-pointer hover:bg-[#FF4D2E]/20">
-                Changer
-                <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" @change="uploadAvatar"/>
-              </label>
-              <button v-if="avatar_url" @click="deleteAvatar" type="button"
-                      class="px-2 py-1 text-[11px] text-gray-500 hover:text-rose-600">Retirer</button>
-            </div>
-            <p v-if="errors.avatar" class="text-rose-600 text-[10px] text-center max-w-[120px]">{{ errors.avatar }}</p>
-          </div>
-          <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div>
-              <div class="text-[10px] uppercase tracking-wider text-gray-500">Adresse</div>
-              <code class="font-mono">{{ email }}</code>
-            </div>
-            <div>
-              <div class="text-[10px] uppercase tracking-wider text-gray-500">Nom affiché</div>
-              <span>{{ display_name || '—' }}</span>
-            </div>
-            <p class="text-[11px] text-gray-500 md:col-span-2">
-              L'avatar (PNG, JPG, WebP, GIF — max 2 Mo) apparaît dans le webmail et le sélecteur d'identité.
-              Sans avatar uploadé, on génère automatiquement tes initiales sur un fond coloré déterministe.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Password -->
-      <section class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 shadow-sm">
-        <h2 class="font-bold mb-1 flex items-center gap-2">
-          <span class="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-sm">🔑</span>
-          Mot de passe
-        </h2>
-        <p class="text-[11px] text-gray-500 mb-3">Change ton mot de passe principal (login web + IMAP).</p>
-        <form @submit.prevent="changePwd" class="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <input v-model="pwd.current_password" type="password" required placeholder="Mot de passe actuel"
-                 class="px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-blue-500"/>
-          <input v-model="pwd.new_password" type="password" required minlength="10" placeholder="Nouveau (10 car. min)"
-                 class="px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-blue-500"/>
-          <p v-if="errors.current_password" class="text-rose-600 text-xs md:col-span-2">{{ errors.current_password }}</p>
-          <button type="submit" class="md:col-span-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700">
-            Changer le mot de passe
+      <nav class="flex-1 py-3 px-2 space-y-4 text-sm">
+        <div v-for="section in sections" :key="section.label">
+          <div class="px-3 mb-1 text-[10px] uppercase tracking-wider text-gray-400 font-bold">{{ section.label }}</div>
+          <button v-for="t in section.items" :key="t.id" @click="active = t.id; sidebarOpen = false"
+            :class="['w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg transition mb-0.5',
+                     active === t.id
+                       ? 'bg-[#FF4D2E]/10 text-[#FF4D2E] font-semibold'
+                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-900']">
+            <span class="w-4 text-center">{{ t.emoji }}</span>
+            <span class="flex-1 truncate">{{ t.label }}</span>
           </button>
-        </form>
-      </section>
+        </div>
+      </nav>
+    </aside>
 
-      <!-- 2FA -->
-      <section class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 shadow-sm">
-        <h2 class="font-bold mb-1 flex items-center gap-2">
-          <span class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center text-sm">🔒</span>
-          Double authentification (2FA)
-          <span v-if="totp_enabled" class="ml-1 inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] uppercase tracking-wider font-bold">activée</span>
-        </h2>
-        <p class="text-[11px] text-gray-500 mb-3">Ajoute une couche de sécurité avec une app comme Authy, Google Authenticator, 1Password ou Bitwarden.</p>
+    <div v-if="sidebarOpen" @click="sidebarOpen=false" class="lg:hidden fixed inset-0 bg-black/40 z-20"/>
 
-        <!-- Pas activé : bouton démarrer -->
-        <button v-if="!totp_enabled && !totp_setup" @click="start2fa"
-                class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700">
-          🚀 Activer le 2FA
-        </button>
-
-        <!-- En cours d'activation : QR + code -->
-        <div v-if="totp_setup" class="border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 bg-emerald-50/30 dark:bg-emerald-950/30">
-          <p class="text-sm mb-3">📷 Scanne ce QR code dans ton app d'authentification :</p>
-          <div class="flex flex-col md:flex-row gap-4 items-center">
-            <img :src="`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(totp_setup.uri)}`"
-                 alt="QR code 2FA" class="w-48 h-48 rounded-lg border border-gray-200"/>
-            <div class="flex-1 text-xs">
-              <p class="mb-1 text-gray-500">Ou entre manuellement ce secret :</p>
-              <code class="block px-3 py-2 bg-white dark:bg-zinc-900 rounded font-mono break-all text-[11px]">{{ totp_setup.secret }}</code>
-              <form @submit.prevent="confirm2fa" class="mt-4">
-                <p class="mb-1 text-gray-500">Puis entre le code à 6 chiffres :</p>
-                <div class="flex gap-2">
-                  <input v-model="confirmCode" type="text" inputmode="numeric" required maxlength="6"
-                         class="flex-1 px-3 py-2 text-center font-mono tracking-widest bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-emerald-500"
-                         placeholder="000000" />
-                  <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700">Confirmer</button>
-                </div>
-                <p v-if="errors.code" class="text-rose-600 text-xs mt-1">{{ errors.code }}</p>
-              </form>
-            </div>
+    <!-- ── Main ── -->
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="bg-white dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 sticky top-0 z-10">
+        <div class="px-5 py-3 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden text-gray-500">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            </button>
+            <h1 class="text-lg font-bold truncate">{{ activeLabel }}</h1>
+          </div>
+          <div class="flex items-center gap-3 text-xs text-gray-500">
+            <code class="hidden sm:inline font-mono">{{ email }}</code>
           </div>
         </div>
+      </header>
 
-        <!-- Codes de récupération (one-shot après activation) -->
-        <div v-if="totp_activated" class="border border-amber-200 dark:border-amber-800 rounded-xl p-4 bg-amber-50/40 dark:bg-amber-950/40 mt-3">
-          <p class="font-bold text-amber-700 dark:text-amber-300 mb-2">⚠ {{ totp_activated.message }}</p>
-          <ul class="grid grid-cols-2 gap-1 font-mono text-xs">
-            <li v-for="c in totp_activated.recovery_codes" :key="c" class="px-2 py-1 bg-white dark:bg-zinc-900 rounded">{{ c }}</li>
-          </ul>
-          <button @click="copyRecovery" class="mt-2 text-xs text-amber-700 hover:underline">📋 Copier les 8 codes</button>
+      <main class="flex-1 px-5 py-6 max-w-3xl w-full mx-auto space-y-5">
+        <div v-if="flash?.success" class="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{{ flash.success }}</div>
+        <div v-if="force_2fa && !totp_enabled" class="px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          ⚠ <strong>2FA obligatoire :</strong> ton rôle admin/support exige TOTP pour accéder à l'admin panel.
         </div>
 
-        <!-- Déjà activé : formulaire de désactivation -->
-        <form v-if="totp_enabled && !totp_setup && !totp_activated" @submit.prevent="disable2fa" class="flex gap-2">
-          <input v-model="disablePwd" type="password" required placeholder="Mot de passe pour confirmer désactivation"
-                 class="flex-1 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl"/>
-          <button type="submit" class="px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-700">Désactiver 2FA</button>
-        </form>
-        <p v-if="errors.password" class="text-rose-600 text-xs mt-1">{{ errors.password }}</p>
-      </section>
-
-      <!-- SMTP Tokens -->
-      <section class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 shadow-sm">
-        <h2 class="font-bold mb-1 flex items-center gap-2">
-          <span class="w-7 h-7 rounded-lg bg-violet-500/15 text-violet-600 flex items-center justify-center text-sm">📨</span>
-          Tokens SMTP (apps)
-        </h2>
-        <p class="text-[11px] text-gray-500 mb-3">Mots de passe dédiés pour Thunderbird, iPhone Mail, scripts… Révocables à tout moment.</p>
-
-        <form @submit.prevent="createToken" class="flex gap-2 mb-3">
-          <input v-model="newTokenLabel" required placeholder="Ex: iPhone Mail, Thunderbird laptop…"
-                 class="flex-1 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-violet-500"/>
-          <button type="submit" class="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-bold hover:bg-violet-700">+ Générer</button>
-        </form>
-
-        <!-- Nouveau token affiché (one-shot) -->
-        <div v-if="new_token" class="border border-violet-200 dark:border-violet-800 rounded-xl p-4 bg-violet-50/40 dark:bg-violet-950/40 mb-3">
-          <p class="font-bold text-violet-700 dark:text-violet-300 mb-2">⚠ {{ new_token.warning }}</p>
-          <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs font-mono">
-            <dt class="text-gray-500">Server :</dt><dd>{{ new_token.server }}</dd>
-            <dt class="text-gray-500">Port :</dt><dd>{{ new_token.port }} (STARTTLS)</dd>
-            <dt class="text-gray-500">Username :</dt><dd class="break-all">{{ new_token.username }}</dd>
-            <dt class="text-gray-500">Password :</dt>
-            <dd class="break-all">
-              <code class="px-2 py-1 bg-white dark:bg-zinc-900 rounded">{{ new_token.password }}</code>
-              <button @click="copy(new_token.password)" class="ml-2 text-violet-600 hover:underline">📋</button>
-            </dd>
-          </dl>
-        </div>
-
-        <!-- Liste -->
-        <ul v-if="tokens.length" class="divide-y divide-gray-100 dark:divide-zinc-700 -mx-5">
-          <li v-for="t in tokens" :key="t.id" class="px-5 py-2.5 flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-fuchsia-500 text-white flex items-center justify-center text-xs font-bold">
-              {{ t.label.charAt(0).toUpperCase() }}
+        <!-- ═════ MON COMPTE (profil étendu) ═════ -->
+        <section v-if="active === 'profile'" class="space-y-5">
+          <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5">
+            <div class="flex items-start gap-5">
+              <div class="flex flex-col items-center gap-2">
+                <img :src="avatarSrc" class="w-24 h-24 rounded-full object-cover bg-gray-200 dark:bg-zinc-700 border border-gray-200 dark:border-zinc-700"/>
+                <div class="flex items-center gap-1">
+                  <label class="px-2 py-1 text-[11px] font-semibold bg-[#FF4D2E]/10 text-[#FF4D2E] rounded-lg cursor-pointer hover:bg-[#FF4D2E]/20">
+                    Changer
+                    <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" @change="uploadAvatar"/>
+                  </label>
+                  <button v-if="avatar_url" @click="deleteAvatar" type="button" class="px-2 py-1 text-[11px] text-gray-500 hover:text-rose-600">Retirer</button>
+                </div>
+                <p v-if="errors.avatar" class="text-rose-600 text-[10px] text-center max-w-[120px]">{{ errors.avatar }}</p>
+              </div>
+              <div class="flex-1 min-w-0">
+                <h2 class="font-bold">Mon compte</h2>
+                <p class="text-[11px] text-gray-500 mb-3">Tes infos personnelles + signature des mails sortants.</p>
+                <div class="text-sm">
+                  <div class="text-[10px] uppercase tracking-wider text-gray-500">Adresse mail</div>
+                  <code class="font-mono">{{ email }}</code>
+                </div>
+              </div>
             </div>
-            <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold truncate">{{ t.label }}</div>
-              <p class="text-[10px] text-gray-500">
-                Créé {{ rel(t.created_at) }}
-                <span v-if="t.last_used_at"> · Utilisé {{ rel(t.last_used_at) }}</span>
-                <span v-else> · Jamais utilisé</span>
-              </p>
+          </div>
+
+          <form @submit.prevent="saveProfile" class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 space-y-4">
+            <h3 class="font-bold text-sm">État civil</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="Prénom"        v-model="form.first_name"   placeholder="Jean"/>
+              <Field label="Nom"           v-model="form.last_name"    placeholder="Dupont"/>
+              <Field label="Initiales"     v-model="form.initials"     placeholder="JD" maxlength="8"/>
+              <Field label="Nom affiché*"  v-model="form.display_name" placeholder="Jean Dupont"/>
             </div>
-            <button @click="revoke(t)" class="text-xs text-rose-600 hover:underline">Révoquer</button>
-          </li>
-        </ul>
-        <p v-else class="text-xs text-gray-400 text-center py-4">Aucun token. Crée le premier pour configurer un client mail externe.</p>
-      </section>
-    </main>
+
+            <h3 class="font-bold text-sm pt-3">Coordonnées</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="Téléphone fixe" v-model="form.phone"      type="tel" placeholder="+33 1 23 45 67 89"/>
+              <Field label="Mobile"         v-model="form.mobile"     type="tel" placeholder="+33 6 12 34 56 78"/>
+              <Field label="Fonction"       v-model="form.job_title"  placeholder="Responsable IT"/>
+              <Field label="Société"        v-model="form.company"    placeholder="Acme SAS"/>
+            </div>
+
+            <h3 class="font-bold text-sm pt-3">Adresse postale</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="Rue"             v-model="form.street"      class="md:col-span-2"/>
+              <Field label="Ville"           v-model="form.city"/>
+              <Field label="Région / État"   v-model="form.state"/>
+              <Field label="Code postal"     v-model="form.postal_code"/>
+              <Field label="Pays"            v-model="form.country"/>
+            </div>
+
+            <h3 class="font-bold text-sm pt-3">Préférences</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label class="block">
+                <span class="block text-[10px] uppercase tracking-wider text-gray-500">Fuseau horaire</span>
+                <select v-model="form.timezone" class="w-full mt-1 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg">
+                  <option v-for="tz in TIMEZONES" :key="tz" :value="tz">{{ tz }}</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="block text-[10px] uppercase tracking-wider text-gray-500">Langue</span>
+                <select v-model="form.language" class="w-full mt-1 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg">
+                  <option value="fr">Français</option>
+                  <option value="en">English</option>
+                </select>
+              </label>
+            </div>
+
+            <button type="submit" class="px-5 py-2 bg-[#FF4D2E] text-white rounded-lg text-sm font-bold hover:bg-[#df3c1f]">
+              💾 Sauvegarder
+            </button>
+          </form>
+        </section>
+
+        <!-- ═════ SÉCURITÉ (password + 2FA) ═════ -->
+        <section v-if="active === 'security'" class="space-y-5">
+          <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5">
+            <h2 class="font-bold mb-1 flex items-center gap-2"><span>🔑</span>Mot de passe</h2>
+            <p class="text-[11px] text-gray-500 mb-3">Login web + IMAP + SMTP.</p>
+            <form @submit.prevent="changePwd" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <input v-model="pwd.current_password" type="password" required placeholder="Mot de passe actuel" class="px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border rounded-lg"/>
+              <input v-model="pwd.new_password" type="password" required minlength="10" placeholder="Nouveau (10+ car.)" class="px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border rounded-lg"/>
+              <p v-if="errors.current_password" class="text-rose-600 text-xs md:col-span-2">{{ errors.current_password }}</p>
+              <button type="submit" class="md:col-span-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">Changer le mot de passe</button>
+            </form>
+          </div>
+
+          <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5">
+            <h2 class="font-bold mb-1 flex items-center gap-2"><span>🔐</span>Double authentification (TOTP)
+              <span v-if="totp_enabled" class="text-[10px] text-emerald-600 font-bold uppercase">activée</span>
+              <span v-else class="text-[10px] text-rose-600 font-bold uppercase">désactivée</span>
+            </h2>
+            <p class="text-[11px] text-gray-500 mb-3">Google Authenticator, 1Password, Authy, Bitwarden, etc.</p>
+
+            <div v-if="!totp_enabled && !totp_setup">
+              <button @click="start2fa" class="px-4 py-2 bg-[#FF4D2E] text-white rounded-lg text-sm font-bold">Activer la 2FA</button>
+            </div>
+            <div v-if="totp_setup && !totp_activated" class="space-y-3">
+              <p class="text-sm text-gray-700 dark:text-gray-300">Ajoute ce secret dans ton authenticator, puis confirme avec un code à 6 chiffres :</p>
+              <div class="flex items-center gap-2">
+                <code class="px-3 py-2 bg-gray-100 dark:bg-zinc-900 rounded-lg font-mono text-xs flex-1">{{ totp_setup.secret }}</code>
+                <button @click="copy(totp_setup.secret)" class="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">📋</button>
+              </div>
+              <p class="text-[11px] text-gray-500 font-mono break-all">{{ totp_setup.uri }}</p>
+              <form @submit.prevent="confirm2fa" class="flex gap-2">
+                <input v-model="confirmCode" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="123456" class="flex-1 px-3 py-2 text-center text-xl font-mono bg-gray-50 dark:bg-zinc-900 border rounded-lg"/>
+                <button type="submit" class="px-4 py-2 bg-[#FF4D2E] text-white rounded-lg text-sm font-bold">Confirmer</button>
+              </form>
+              <p v-if="errors.code" class="text-rose-600 text-xs">{{ errors.code }}</p>
+            </div>
+            <div v-if="totp_activated" class="space-y-2 mt-3">
+              <p class="text-sm text-emerald-700 font-semibold">{{ totp_activated.message }}</p>
+              <pre class="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs font-mono whitespace-pre-wrap">{{ totp_activated.recovery_codes.join('\n') }}</pre>
+              <button @click="copyRecovery" class="text-xs px-2 py-1 bg-gray-200 rounded">Copier les codes</button>
+            </div>
+            <form v-if="totp_enabled && !totp_setup" @submit.prevent="disable2fa" class="flex gap-2 items-end mt-3">
+              <label class="block flex-1">
+                <span class="block text-[10px] uppercase tracking-wider text-gray-500">Mot de passe pour confirmer</span>
+                <input v-model="disablePwd" type="password" required class="w-full mt-1 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border rounded-lg"/>
+              </label>
+              <button type="submit" class="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-bold">Désactiver</button>
+            </form>
+            <p v-if="errors.password" class="text-rose-600 text-xs mt-2">{{ errors.password }}</p>
+          </div>
+        </section>
+
+        <!-- ═════ TOKENS SMTP ═════ -->
+        <section v-if="active === 'tokens'" class="space-y-5">
+          <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5">
+            <h2 class="font-bold mb-1 flex items-center gap-2"><span>🔌</span>Tokens SMTP (apps externes)</h2>
+            <p class="text-[11px] text-gray-500 mb-3">Mots de passe applicatifs pour Thunderbird, Apple Mail, scripts… Révocables individuellement.</p>
+            <form @submit.prevent="createToken" class="flex gap-2 mb-4">
+              <input v-model="newTokenLabel" required maxlength="64" placeholder="Étiquette : iPhone, Thunderbird…" class="flex-1 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border rounded-lg"/>
+              <button type="submit" class="px-4 py-2 bg-[#FF4D2E] text-white rounded-lg text-sm font-bold">+ Créer</button>
+            </form>
+            <div v-if="new_token" class="px-3 py-2 mb-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">
+              <p class="font-bold">Token créé — copie-le maintenant, il ne sera plus jamais affiché :</p>
+              <code class="block font-mono break-all mt-1 select-all">{{ new_token }}</code>
+            </div>
+            <ul v-if="tokens.length" class="divide-y divide-gray-100 dark:divide-zinc-700 text-sm">
+              <li v-for="t in tokens" :key="t.id" class="py-2 flex items-center justify-between">
+                <div>
+                  <div class="font-semibold">{{ t.label }}</div>
+                  <div class="text-[11px] text-gray-500">Créé {{ rel(t.created_at) }} · dernière utilisation : {{ rel(t.last_used_at) }}</div>
+                </div>
+                <button @click="revoke(t)" class="text-xs text-gray-400 hover:text-rose-600">Révoquer</button>
+              </li>
+            </ul>
+            <p v-else class="text-xs text-gray-400 text-center py-4">Aucun token.</p>
+          </div>
+        </section>
+
+      </main>
+    </div>
   </div>
 </template>
+
 <script setup>
 import { reactive, ref, computed } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import Field from '../Components/Field.vue';
+
 const props = defineProps({
   email: String, display_name: String, totp_enabled: Boolean,
   tokens: Array, mail_domain: String,
   avatar_hash: String, avatar_url: String,
+  profile: Object, force_2fa: Boolean,
 });
-const fileInput = ref(null);
-const avatarSrc = computed(() => {
-  if (props.avatar_url) return props.avatar_url;
-  // Fallback : route SVG initiales (couleur déterministe sur le hash email)
-  const n = encodeURIComponent(props.display_name || props.email || '');
-  return `/webmail/avatar/${props.avatar_hash}?n=${n}`;
-});
-function uploadAvatar(e) {
-  const f = e.target.files?.[0];
-  if (!f) return;
-  const fd = new FormData();
-  fd.append('avatar', f);
-  router.post('/account/avatar', fd, {
-    preserveScroll: true,
-    forceFormData: true,
-    onFinish: () => { if (fileInput.value) fileInput.value.value = ''; },
-  });
-}
-function deleteAvatar() {
-  if (!confirm('Supprimer ton avatar ? On retombera sur tes initiales.')) return;
-  router.delete('/account/avatar', { preserveScroll: true });
-}
+
+const sidebarOpen = ref(false);
+const active = ref('profile');
+const sections = [
+  { label: 'Général', items: [
+    { id: 'profile',  label: 'Mon compte',   emoji: '👤' },
+    { id: 'security', label: 'Sécurité & 2FA', emoji: '🔐' },
+    { id: 'tokens',   label: 'Tokens SMTP',  emoji: '🔌' },
+  ]},
+];
+const activeLabel = computed(() =>
+  sections.flatMap(s => s.items).find(t => t.id === active.value)?.label || 'Options'
+);
+
 const flash = computed(() => usePage().props.flash);
 const errors = computed(() => usePage().props.errors || {});
 const totp_setup = computed(() => usePage().props.flash?.totp_setup);
 const totp_activated = computed(() => usePage().props.flash?.totp_activated);
 const new_token = computed(() => usePage().props.flash?.new_token);
 
+// Profil
+const form = reactive({
+  display_name: props.display_name || '',
+  first_name: props.profile?.first_name || '',
+  last_name: props.profile?.last_name || '',
+  initials: props.profile?.initials || '',
+  phone: props.profile?.phone || '',
+  mobile: props.profile?.mobile || '',
+  job_title: props.profile?.job_title || '',
+  company: props.profile?.company || '',
+  street: props.profile?.street || '',
+  city: props.profile?.city || '',
+  state: props.profile?.state || '',
+  postal_code: props.profile?.postal_code || '',
+  country: props.profile?.country || '',
+  timezone: props.profile?.timezone || 'UTC',
+  language: props.profile?.language || 'fr',
+});
+function saveProfile() { router.post('/account/profile', form, { preserveScroll: true }); }
+
+// Avatar
+const fileInput = ref(null);
+const avatarSrc = computed(() => {
+  if (props.avatar_url) return props.avatar_url;
+  const n = encodeURIComponent(form.display_name || props.email || '');
+  return `/webmail/avatar/${props.avatar_hash}?n=${n}`;
+});
+function uploadAvatar(e) {
+  const f = e.target.files?.[0]; if (!f) return;
+  const fd = new FormData(); fd.append('avatar', f);
+  router.post('/account/avatar', fd, { preserveScroll: true, forceFormData: true,
+    onFinish: () => { if (fileInput.value) fileInput.value.value = ''; }});
+}
+function deleteAvatar() {
+  if (confirm('Supprimer l\'avatar ?')) router.delete('/account/avatar', { preserveScroll: true });
+}
+
+// Password
 const pwd = reactive({ current_password: '', new_password: '' });
+function changePwd() { router.post('/account/password', pwd, { preserveScroll: true, onSuccess: () => { pwd.current_password=''; pwd.new_password=''; }}); }
+
+// 2FA
 const confirmCode = ref('');
 const disablePwd = ref('');
-const newTokenLabel = ref('');
+function start2fa()  { router.post('/account/2fa/start', {}, { preserveScroll: true }); }
+function confirm2fa(){ router.post('/account/2fa/confirm', { code: confirmCode.value }, { preserveScroll: true, onSuccess: () => confirmCode.value = '' }); }
+function disable2fa(){ router.post('/account/2fa/disable', { password: disablePwd.value }, { preserveScroll: true, onSuccess: () => disablePwd.value = '' }); }
+function copy(s)     { navigator.clipboard?.writeText(s); }
+function copyRecovery(){ copy(totp_activated.value?.recovery_codes.join('\n')); }
 
-function changePwd() { router.post('/account/password', pwd, { preserveScroll: true, onSuccess: () => { pwd.current_password=''; pwd.new_password=''; } }); }
-function start2fa() { router.post('/account/2fa/start', {}, { preserveScroll: true }); }
-function confirm2fa() { router.post('/account/2fa/confirm', { code: confirmCode.value }, { preserveScroll: true, onSuccess: () => confirmCode.value = '' }); }
-function disable2fa() { router.post('/account/2fa/disable', { password: disablePwd.value }, { preserveScroll: true, onSuccess: () => disablePwd.value = '' }); }
-function createToken() { router.post('/account/tokens', { label: newTokenLabel.value }, { preserveScroll: true, onSuccess: () => newTokenLabel.value = '' }); }
-function revoke(t) { if (confirm(`Révoquer le token « ${t.label} » ?`)) router.delete(`/account/tokens/${t.id}`, { preserveScroll: true }); }
-function copy(text) { navigator.clipboard?.writeText(text); }
-function copyRecovery() { copy(totp_activated.value?.recovery_codes.join('\n')); }
+// Tokens
+const newTokenLabel = ref('');
+function createToken(){ router.post('/account/tokens', { label: newTokenLabel.value }, { preserveScroll: true, onSuccess: () => newTokenLabel.value = '' }); }
+function revoke(t){ if (confirm(`Révoquer le token « ${t.label} » ?`)) router.delete(`/account/tokens/${t.id}`, { preserveScroll: true }); }
+
 function rel(iso) {
-  if (!iso) return '?';
+  if (!iso) return 'jamais';
   const d = (Date.now() - new Date(iso)) / 1000;
   if (d < 60) return `il y a ${Math.round(d)}s`;
   if (d < 3600) return `il y a ${Math.round(d/60)} min`;
   if (d < 86400) return `il y a ${Math.round(d/3600)} h`;
   return `il y a ${Math.round(d/86400)} j`;
 }
+
+// Hard-coded liste TZ — courte, courantes
+const TIMEZONES = [
+  'UTC', 'Europe/Paris', 'Europe/London', 'Europe/Berlin', 'Europe/Madrid', 'Europe/Rome',
+  'Africa/Casablanca', 'America/New_York', 'America/Los_Angeles', 'America/Sao_Paulo',
+  'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Singapore', 'Australia/Sydney',
+];
 </script>

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
  */
 Route::get('/', [AuthController::class, 'landing'])->name('landing');
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::get('/admin/login', [AuthController::class, 'showAdminLogin'])->name('admin.login');
 // Rate-limit : 5 tentatives / minute / IP pour limiter le bruteforce.
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 Route::get('/login/2fa',  [AuthController::class, 'show2fa']);
@@ -33,6 +34,7 @@ Route::get('/webmail/avatar/{hash}', [\App\Http\Controllers\AccountController::c
 Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
     // Espace utilisateur : mot de passe, 2FA, tokens SMTP, avatar
     Route::get('/account',                     [\App\Http\Controllers\AccountController::class, 'index']);
+    Route::post('/account/profile',            [\App\Http\Controllers\AccountController::class, 'updateProfile']);
     Route::post('/account/password',           [\App\Http\Controllers\AccountController::class, 'changePassword']);
     Route::post('/account/avatar',             [\App\Http\Controllers\AccountController::class, 'uploadAvatar']);
     Route::delete('/account/avatar',           [\App\Http\Controllers\AccountController::class, 'deleteAvatar']);

@@ -42,7 +42,52 @@ class AccountController extends Controller
             'avatar_url'   => $acc->avatar_path
                 ? '/webmail/avatar/' . md5(strtolower($acc->email)) . '?v=' . substr(md5((string) $acc->avatar_path), 0, 8)
                 : null,
+            // Profil étendu (migration 110)
+            'profile' => [
+                'first_name'  => $acc->first_name  ?? null,
+                'last_name'   => $acc->last_name   ?? null,
+                'initials'    => $acc->initials    ?? null,
+                'phone'       => $acc->phone       ?? null,
+                'mobile'      => $acc->mobile      ?? null,
+                'job_title'   => $acc->job_title   ?? null,
+                'company'     => $acc->company     ?? null,
+                'street'      => $acc->street      ?? null,
+                'city'        => $acc->city        ?? null,
+                'state'       => $acc->state       ?? null,
+                'postal_code' => $acc->postal_code ?? null,
+                'country'     => $acc->country     ?? null,
+                'timezone'    => $acc->timezone    ?? 'UTC',
+                'language'    => $acc->language    ?? 'fr',
+            ],
+            'force_2fa' => $request->boolean('force_2fa'),
         ]);
+    }
+
+    /** POST /account/profile — met à jour les champs profil étendus + display_name. */
+    public function updateProfile(Request $request)
+    {
+        $acc = $this->account($request);
+        $data = $request->validate([
+            'display_name' => 'nullable|string|max:120',
+            'first_name'   => 'nullable|string|max:80',
+            'last_name'    => 'nullable|string|max:80',
+            'initials'     => 'nullable|string|max:8',
+            'phone'        => 'nullable|string|max:32',
+            'mobile'       => 'nullable|string|max:32',
+            'job_title'    => 'nullable|string|max:120',
+            'company'      => 'nullable|string|max:120',
+            'street'       => 'nullable|string|max:255',
+            'city'         => 'nullable|string|max:120',
+            'state'        => 'nullable|string|max:120',
+            'postal_code'  => 'nullable|string|max:20',
+            'country'      => 'nullable|string|max:80',
+            'timezone'     => 'nullable|string|max:64',
+            'language'     => 'nullable|string|max:8',
+        ]);
+        DB::table('mail_accounts')->where('id', $acc->id)->update(array_merge($data, [
+            'updated_at' => now(),
+        ]));
+        return back()->with('success', 'Profil mis à jour.');
     }
 
     /* ──────── Avatar ──────── */

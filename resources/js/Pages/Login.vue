@@ -1,87 +1,135 @@
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center px-4"
-       style="background:linear-gradient(135deg,#15151a 0%,#2a1510 100%)">
-    <svg viewBox="0 0 520 100" height="46" class="mb-8">
-      <rect x="12" y="35" width="10" height="30" rx="5" fill="#FAFAF7"/>
-      <rect x="30" y="25" width="10" height="50" rx="5" fill="#FAFAF7"/>
-      <rect x="48" y="15" width="10" height="70" rx="5" fill="#FAFAF7"/>
-      <rect x="66" y="22" width="10" height="56" rx="5" fill="#FF4D2E"/>
-      <rect x="84" y="20" width="10" height="60" rx="5" fill="#FAFAF7"/>
-      <rect x="102" y="30" width="10" height="40" rx="5" fill="#FAFAF7"/>
-      <rect x="120" y="35" width="10" height="30" rx="5" fill="#FAFAF7"/>
-      <text x="170" y="68" font-family="ui-monospace,Menlo,monospace" font-weight="500"
-            font-size="64" letter-spacing="-3.2" fill="#FAFAF7">noliae</text>
-    </svg>
+  <div class="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-zinc-900">
+    <!-- ── Panneau de gauche : marque (style OWA splash) ── -->
+    <aside class="lg:w-1/3 xl:w-2/5 bg-gradient-to-br from-[#FF4D2E] to-[#cc3a1f] text-white flex items-center justify-center px-8 py-16 relative overflow-hidden">
+      <!-- Bars decorative en watermark -->
+      <svg viewBox="0 0 140 100" class="absolute inset-0 m-auto opacity-10 w-3/4 max-w-md">
+        <rect x="12" y="35" width="10" height="30" rx="5" fill="white"/>
+        <rect x="30" y="25" width="10" height="50" rx="5" fill="white"/>
+        <rect x="48" y="15" width="10" height="70" rx="5" fill="white"/>
+        <rect x="66" y="22" width="10" height="56" rx="5" fill="white"/>
+        <rect x="84" y="20" width="10" height="60" rx="5" fill="white"/>
+        <rect x="102" y="30" width="10" height="40" rx="5" fill="white"/>
+        <rect x="120" y="35" width="10" height="30" rx="5" fill="white"/>
+      </svg>
+      <div class="relative z-10 max-w-sm">
+        <svg viewBox="0 0 140 100" class="h-16 mb-6">
+          <rect x="12" y="35" width="10" height="30" rx="5" fill="white"/>
+          <rect x="30" y="25" width="10" height="50" rx="5" fill="white"/>
+          <rect x="48" y="15" width="10" height="70" rx="5" fill="white"/>
+          <rect x="66" y="22" width="10" height="56" rx="5" fill="white"/>
+          <rect x="84" y="20" width="10" height="60" rx="5" fill="white"/>
+          <rect x="102" y="30" width="10" height="40" rx="5" fill="white"/>
+          <rect x="120" y="35" width="10" height="30" rx="5" fill="white"/>
+        </svg>
+        <h1 class="text-4xl lg:text-5xl font-black leading-tight">Noliae Mail</h1>
+        <p class="mt-3 text-white/90 text-sm leading-relaxed">
+          Messagerie professionnelle souveraine, open source, hébergée sur ton infrastructure.
+        </p>
+        <ul class="mt-6 space-y-2 text-sm text-white/85">
+          <li class="flex items-center gap-2"><span>✓</span>Multi-domaines & multi-administrateurs (RBAC)</li>
+          <li class="flex items-center gap-2"><span>✓</span>2FA TOTP, PGP, anti-spam rspamd</li>
+          <li class="flex items-center gap-2"><span>✓</span>Annuaire, boîtes partagées, mailing lists</li>
+        </ul>
+      </div>
+    </aside>
 
-    <div class="bg-white/[0.04] border border-white/10 rounded-3xl p-8 max-w-sm w-full"
-         style="border-top:3px solid #FF4D2E">
-      <h1 class="text-white text-lg font-black text-center">Noliae Mail</h1>
-      <p class="text-gray-400 text-xs mt-1 text-center">
-        {{ mode === 'register' ? 'Créer un nouveau compte' : 'Connexion à votre boîte mail' }}
-      </p>
+    <!-- ── Panneau de droite : formulaire ── -->
+    <main class="flex-1 flex items-center justify-center px-6 py-12 lg:py-0">
+      <div class="w-full max-w-md">
+        <div class="lg:hidden flex items-center gap-2 mb-8">
+          <svg viewBox="0 0 140 100" class="h-8 text-[#FF4D2E]">
+            <rect x="12" y="35" width="10" height="30" rx="5" fill="currentColor"/>
+            <rect x="30" y="25" width="10" height="50" rx="5" fill="currentColor"/>
+            <rect x="48" y="15" width="10" height="70" rx="5" fill="currentColor"/>
+            <rect x="66" y="22" width="10" height="56" rx="5" fill="#FF4D2E"/>
+            <rect x="84" y="20" width="10" height="60" rx="5" fill="currentColor"/>
+            <rect x="102" y="30" width="10" height="40" rx="5" fill="currentColor"/>
+            <rect x="120" y="35" width="10" height="30" rx="5" fill="currentColor"/>
+          </svg>
+          <span class="font-black text-xl">Noliae Mail</span>
+        </div>
 
-      <!-- LOGIN -->
-      <form v-if="mode === 'login'" @submit.prevent="submitLogin" class="mt-6 space-y-3">
-        <label class="block">
-          <span class="block text-[11px] uppercase tracking-wider text-gray-400 mb-1">Adresse mail</span>
-          <input v-model="loginForm.email" type="email" required autocomplete="username"
-                 class="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-[#FF4D2E] focus:outline-none"
-                 :placeholder="`nom@${domain}`" />
-        </label>
-        <label class="block">
-          <span class="block text-[11px] uppercase tracking-wider text-gray-400 mb-1">Mot de passe</span>
-          <input v-model="loginForm.password" type="password" required autocomplete="current-password"
-                 class="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-[#FF4D2E] focus:outline-none" />
-        </label>
-        <p v-if="errors.email" class="text-rose-400 text-xs">{{ errors.email }}</p>
-        <button type="submit" :disabled="processing"
-                class="w-full mt-2 px-6 py-2.5 rounded-full bg-[#FF4D2E] text-white font-bold text-sm hover:bg-[#df3c1f] disabled:opacity-60 transition">
-          {{ processing ? 'Connexion…' : 'Se connecter' }}
-        </button>
-        <button v-if="allowRegister" type="button" @click="mode = 'register'; clearErrors()"
-                class="w-full text-gray-400 text-xs hover:text-white transition">
-          Pas encore de compte ? Créer un compte sur @{{ domain }}
-        </button>
-      </form>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          {{ mode === 'register' ? 'Créer un compte' : 'Se connecter' }}
+        </h2>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
+          {{ mode === 'register' ? `Nouveau compte sur @${domain}` : `Boîte mail @${domain}` }}
+        </p>
 
-      <!-- REGISTER -->
-      <form v-else @submit.prevent="submitRegister" class="mt-6 space-y-3">
-        <label class="block">
-          <span class="block text-[11px] uppercase tracking-wider text-gray-400 mb-1">Nom d'utilisateur</span>
-          <div class="flex items-center bg-black/30 border border-white/10 rounded-lg overflow-hidden focus-within:border-[#FF4D2E]">
-            <input v-model="regForm.local" type="text" required autocomplete="username"
-                   pattern="^[a-zA-Z0-9][a-zA-Z0-9._\-]{1,63}$"
-                   class="flex-1 bg-transparent px-3 py-2 text-white text-sm focus:outline-none"
-                   placeholder="prenom.nom" />
-            <span class="px-3 text-gray-500 text-sm">@{{ domain }}</span>
+        <!-- LOGIN -->
+        <form v-if="mode === 'login'" @submit.prevent="submitLogin" class="mt-8 space-y-4">
+          <label class="block">
+            <span class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Adresse mail</span>
+            <input v-model="loginForm.email" type="email" required autocomplete="username"
+                   class="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-gray-900 dark:text-gray-100 text-sm focus:border-[#FF4D2E] focus:ring-2 focus:ring-[#FF4D2E]/20 focus:outline-none"
+                   :placeholder="`prenom.nom@${domain}`" />
+          </label>
+          <label class="block">
+            <span class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Mot de passe</span>
+            <input v-model="loginForm.password" type="password" required autocomplete="current-password"
+                   class="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-gray-900 dark:text-gray-100 text-sm focus:border-[#FF4D2E] focus:ring-2 focus:ring-[#FF4D2E]/20 focus:outline-none" />
+          </label>
+          <p v-if="errors.email" class="text-rose-500 text-xs">{{ errors.email }}</p>
+          <p v-if="errors.password" class="text-rose-500 text-xs">{{ errors.password }}</p>
+          <button type="submit" :disabled="processing"
+                  class="w-full mt-2 px-6 py-2.5 rounded-lg bg-[#FF4D2E] text-white font-bold text-sm hover:bg-[#df3c1f] disabled:opacity-60 transition shadow-sm">
+            {{ processing ? 'Connexion…' : '→ Se connecter' }}
+          </button>
+          <div class="text-center">
+            <button v-if="allowRegister" type="button" @click="mode = 'register'"
+                    class="text-gray-500 text-xs hover:text-[#FF4D2E] transition">
+              Pas encore de compte ? Créer un compte sur @{{ domain }}
+            </button>
           </div>
-        </label>
-        <label class="block">
-          <span class="block text-[11px] uppercase tracking-wider text-gray-400 mb-1">Nom affiché (optionnel)</span>
-          <input v-model="regForm.display_name" type="text" autocomplete="name"
-                 class="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-[#FF4D2E] focus:outline-none"
-                 placeholder="Jean Dupont" />
-        </label>
-        <label class="block">
-          <span class="block text-[11px] uppercase tracking-wider text-gray-400 mb-1">Mot de passe (10 caractères min)</span>
-          <input v-model="regForm.password" type="password" required minlength="10" autocomplete="new-password"
-                 class="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-[#FF4D2E] focus:outline-none" />
-        </label>
-        <p v-if="errors.local" class="text-rose-400 text-xs">{{ errors.local }}</p>
-        <p v-if="errors.password" class="text-rose-400 text-xs">{{ errors.password }}</p>
-        <button type="submit" :disabled="processing"
-                class="w-full mt-2 px-6 py-2.5 rounded-full bg-[#FF4D2E] text-white font-bold text-sm hover:bg-[#df3c1f] disabled:opacity-60 transition">
-          {{ processing ? 'Création…' : 'Créer mon compte' }}
-        </button>
-        <button type="button" @click="mode = 'login'; clearErrors()"
-                class="w-full text-gray-400 text-xs hover:text-white transition">
-          ← Retour à la connexion
-        </button>
-      </form>
-    </div>
-    <p class="text-gray-600 text-xs mt-6">Noliae Mail — messagerie souveraine, open source</p>
-    <a href="https://github.com/Noliae/noliae-mail-oss" target="_blank" rel="noopener"
-       class="text-gray-700 text-[11px] mt-1 hover:text-gray-500">github.com/Noliae/noliae-mail-oss</a>
+        </form>
+
+        <!-- REGISTER -->
+        <form v-else @submit.prevent="submitRegister" class="mt-8 space-y-4">
+          <label class="block">
+            <span class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Nom d'utilisateur</span>
+            <div class="flex items-center bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg overflow-hidden focus-within:border-[#FF4D2E] focus-within:ring-2 focus-within:ring-[#FF4D2E]/20">
+              <input v-model="regForm.local" type="text" required autocomplete="username"
+                     pattern="^[a-zA-Z0-9][a-zA-Z0-9._\-]{1,63}$"
+                     class="flex-1 bg-transparent px-3 py-2.5 text-gray-900 dark:text-gray-100 text-sm focus:outline-none"
+                     placeholder="prenom.nom" />
+              <span class="px-3 text-gray-500 text-sm">@{{ domain }}</span>
+            </div>
+          </label>
+          <label class="block">
+            <span class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Nom affiché (optionnel)</span>
+            <input v-model="regForm.display_name" type="text" autocomplete="name"
+                   class="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm focus:border-[#FF4D2E] focus:ring-2 focus:ring-[#FF4D2E]/20 focus:outline-none"
+                   placeholder="Jean Dupont" />
+          </label>
+          <label class="block">
+            <span class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Mot de passe <span class="text-gray-400 font-normal">(10 caractères minimum)</span></span>
+            <input v-model="regForm.password" type="password" required minlength="10" autocomplete="new-password"
+                   class="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm focus:border-[#FF4D2E] focus:ring-2 focus:ring-[#FF4D2E]/20 focus:outline-none" />
+          </label>
+          <p v-if="errors.local" class="text-rose-500 text-xs">{{ errors.local }}</p>
+          <p v-if="errors.password" class="text-rose-500 text-xs">{{ errors.password }}</p>
+          <button type="submit" :disabled="processing"
+                  class="w-full mt-2 px-6 py-2.5 rounded-lg bg-[#FF4D2E] text-white font-bold text-sm hover:bg-[#df3c1f] disabled:opacity-60 transition shadow-sm">
+            {{ processing ? 'Création…' : '→ Créer mon compte' }}
+          </button>
+          <div class="text-center">
+            <button type="button" @click="mode = 'login'"
+                    class="text-gray-500 text-xs hover:text-[#FF4D2E] transition">
+              ← Retour à la connexion
+            </button>
+          </div>
+        </form>
+
+        <div class="mt-10 pt-6 border-t border-gray-100 dark:border-zinc-800 text-center">
+          <p class="text-gray-400 text-xs">Messagerie souveraine, open source</p>
+          <a href="https://github.com/Noliae/noliae-mail-oss" target="_blank" rel="noopener"
+             class="text-gray-400 text-[11px] hover:text-[#FF4D2E] transition mt-1 inline-block">
+            github.com/Noliae/noliae-mail-oss
+          </a>
+        </div>
+      </div>
+    </main>
   </div>
 </template>
 
@@ -101,8 +149,6 @@ const errors = computed(() => usePage().props.errors || {});
 
 const loginForm = reactive({ email: '', password: '' });
 const regForm   = reactive({ local: '', display_name: '', password: '' });
-
-function clearErrors() { /* Inertia clears on next request */ }
 
 function submitLogin() {
   processing.value = true;

@@ -587,12 +587,31 @@
               Modifier le brouillon
             </button>
           </div>
-          <div v-if="selected.attachments && selected.attachments.length" class="mt-4 space-y-2">
-            <div class="flex flex-wrap gap-2">
-              <span v-for="a in selected.attachments" :key="a.name"
-                    class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600">
-                📎 {{ a.name }}
-              </span>
+          <div v-if="selected.attachments && selected.attachments.length" class="mt-4 space-y-3">
+            <div class="text-[11px] uppercase tracking-wider font-bold text-gray-500">
+              {{ selected.attachments.length }} pièce{{ selected.attachments.length > 1 ? 's' : '' }} jointe{{ selected.attachments.length > 1 ? 's' : '' }}
+              <a v-if="selected.attachments.length > 1" :href="`/webmail/attachments-zip?folder=${encodeURIComponent(folder)}&uid=${selected.uid}`"
+                 class="ml-2 text-[#FF4D2E] hover:underline normal-case">Tout télécharger</a>
+            </div>
+            <!-- Cards Outlook-style : icône type fichier + nom + taille + actions -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              <div v-for="a in selected.attachments" :key="a.name"
+                   class="group flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-[#FF4D2E]/40 transition">
+                <div :class="['shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white text-xs',
+                              attColor(a.name)]">
+                  {{ attBadge(a.name) }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold truncate" :title="a.name">{{ a.name }}</div>
+                  <div class="text-[11px] text-gray-500">{{ humanSize(a.size) }}</div>
+                </div>
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <a v-if="attCanPreview(a.name)" :href="attachmentUrl(a.name, true)" target="_blank"
+                     title="Aperçu" class="w-7 h-7 rounded hover:bg-gray-100 dark:hover:bg-zinc-700 flex items-center justify-center text-gray-500">👁</a>
+                  <a :href="attachmentUrl(a.name, false)" :download="a.name"
+                     title="Télécharger" class="w-7 h-7 rounded hover:bg-gray-100 dark:hover:bg-zinc-700 flex items-center justify-center text-gray-500">⬇</a>
+                </div>
+              </div>
             </div>
             <!-- Aperçu inline pour les images -->
             <div v-for="a in selected.attachments.filter(x => /\.(png|jpe?g|gif|webp|svg)$/i.test(x.name))"
@@ -1701,6 +1720,49 @@ function autosizeIframe(e) {
     const ro = new ResizeObserver(measure);
     if (f.contentDocument?.body) ro.observe(f.contentDocument.body);
   } catch (err) {}
+}
+
+// ── Helpers attachments Outlook-style ───────────────────────────
+const ATT_EXT_MAP = {
+  pdf:  { color: 'bg-red-600',     badge: 'PDF' },
+  doc:  { color: 'bg-blue-600',    badge: 'DOC' },
+  docx: { color: 'bg-blue-600',    badge: 'DOC' },
+  xls:  { color: 'bg-emerald-600', badge: 'XLS' },
+  xlsx: { color: 'bg-emerald-600', badge: 'XLS' },
+  ppt:  { color: 'bg-orange-600',  badge: 'PPT' },
+  pptx: { color: 'bg-orange-600',  badge: 'PPT' },
+  zip:  { color: 'bg-yellow-600',  badge: 'ZIP' },
+  rar:  { color: 'bg-yellow-600',  badge: 'RAR' },
+  '7z': { color: 'bg-yellow-600',  badge: '7Z'  },
+  png:  { color: 'bg-purple-600',  badge: 'IMG' },
+  jpg:  { color: 'bg-purple-600',  badge: 'IMG' },
+  jpeg: { color: 'bg-purple-600',  badge: 'IMG' },
+  gif:  { color: 'bg-purple-600',  badge: 'IMG' },
+  webp: { color: 'bg-purple-600',  badge: 'IMG' },
+  svg:  { color: 'bg-purple-600',  badge: 'SVG' },
+  txt:  { color: 'bg-gray-600',    badge: 'TXT' },
+  csv:  { color: 'bg-emerald-700', badge: 'CSV' },
+  mp3:  { color: 'bg-pink-600',    badge: '♪' },
+  wav:  { color: 'bg-pink-600',    badge: '♪' },
+  mp4:  { color: 'bg-pink-700',    badge: '▶' },
+  mov:  { color: 'bg-pink-700',    badge: '▶' },
+  eml:  { color: 'bg-slate-600',   badge: '✉' },
+};
+function attExt(name) {
+  const m = (name || '').toLowerCase().match(/\.([a-z0-9]+)$/);
+  return m ? m[1] : '';
+}
+function attColor(name) { return (ATT_EXT_MAP[attExt(name)] || {}).color || 'bg-gray-500'; }
+function attBadge(name) { return (ATT_EXT_MAP[attExt(name)] || {}).badge || '📎'; }
+function attCanPreview(name) {
+  return /\.(pdf|png|jpe?g|gif|webp|svg|txt)$/i.test(name || '');
+}
+function humanSize(b) {
+  if (!b || b < 0) return '—';
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  if (b < 1024 * 1024 * 1024) return (b / 1024 / 1024).toFixed(1) + ' MB';
+  return (b / 1024 / 1024 / 1024).toFixed(2) + ' GB';
 }
 
 function attachmentUrl(name, inline = false) {
