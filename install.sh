@@ -194,8 +194,11 @@ step "6/9 · Démarrage de la stack"
 if [ "$RESET_DB" = "1" ]; then
   c_yellow "  ⟳ Wipe volume postgres_data (re-init au nouveau password)\n"
   docker compose down 2>/dev/null || true
-  PG_VOL=$(docker volume ls -q | grep -E 'postgres_data$' | head -1)
-  [ -n "$PG_VOL" ] && docker volume rm "$PG_VOL" >/dev/null 2>&1 || true
+  # Volume PG nommé "pg-data" dans le compose, préfixé du nom du projet
+  for vol in $(docker volume ls -q | grep -E 'pg-data$' || true); do
+    c_yellow "    rm volume $vol\n"
+    docker volume rm "$vol" >/dev/null 2>&1 || true
+  done
 fi
 
 docker compose up -d
