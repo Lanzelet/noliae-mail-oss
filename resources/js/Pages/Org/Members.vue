@@ -3,14 +3,14 @@
     <div v-if="flash?.success" class="mb-4 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{{ flash.success }}</div>
     <div v-if="errors.role" class="mb-4 px-4 py-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">{{ errors.role }}</div>
 
-    <section v-if="role === 'owner' && available.length" class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5">
+    <section v-if="role === 'owner' && available.length" class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5">
       <h2 class="font-bold mb-3">➕ Ajouter un membre</h2>
       <form @submit.prevent="add" class="grid grid-cols-1 md:grid-cols-3 gap-2">
-        <select v-model="newMember.mail_account_id" required class="px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border rounded-xl md:col-span-2">
+        <select v-model="newMember.mail_account_id" required class="px-3 py-2 text-sm bg-white dark:bg-zinc-800 border rounded-xl md:col-span-2">
           <option value="" disabled>Compte mail à promouvoir…</option>
           <option v-for="a in available" :key="a.id" :value="a.id">{{ a.display_name || a.email }} ({{ a.email }})</option>
         </select>
-        <select v-model="newMember.role" class="px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border rounded-xl">
+        <select v-model="newMember.role" class="px-3 py-2 text-sm bg-white dark:bg-zinc-800 border rounded-xl">
           <option value="member">Member</option>
           <option value="support">Support</option>
           <option value="admin">Admin</option>
@@ -20,9 +20,9 @@
       </form>
     </section>
 
-    <section class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden">
+    <section class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden">
       <table class="w-full text-sm">
-        <thead class="text-[10px] uppercase tracking-wider text-gray-500 bg-gray-50 dark:bg-zinc-900">
+        <thead class="text-[10px] uppercase tracking-wider text-gray-500 bg-white dark:bg-zinc-800">
           <tr>
             <th class="px-4 py-2 text-left">Membre</th>
             <th class="px-4 py-2 text-left">Rôle</th>
@@ -44,7 +44,7 @@
             </td>
             <td class="px-4 py-2.5">
               <select v-if="role === 'owner' && m.email !== me_email" :value="m.role" @change="setRole(m, $event.target.value)"
-                class="px-2 py-1 text-xs bg-gray-50 dark:bg-zinc-900 border rounded">
+                class="px-2 py-1 text-xs bg-white dark:bg-zinc-800 border rounded">
                 <option value="member">Member</option>
                 <option value="support">Support</option>
                 <option value="admin">Admin</option>

@@ -3,7 +3,7 @@
     <form @submit.prevent="save" class="space-y-6 max-w-2xl">
 
       <!-- Inscriptions -->
-      <div class="bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 p-5">
+      <div class="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-700 p-5">
         <h2 class="font-bold mb-1">Inscriptions publiques</h2>
         <p class="text-xs text-gray-500 mb-4">Si désactivé, seul l'admin peut créer des comptes via cet espace.</p>
         <label class="flex items-center gap-3 cursor-pointer">
@@ -13,25 +13,25 @@
       </div>
 
       <!-- Quotas -->
-      <div class="bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 p-5">
+      <div class="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-700 p-5">
         <h2 class="font-bold mb-1">Quotas mail</h2>
         <p class="text-xs text-gray-500 mb-4">Espace alloué par défaut à chaque nouvelle boîte, et plafond max imposable.</p>
         <div class="grid grid-cols-2 gap-4">
           <label class="block">
             <span class="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">Quota par défaut (Mo)</span>
             <input v-model.number="form.default_quota_mb" type="number" min="10" :max="form.max_quota_mb"
-                   class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 rounded-lg text-sm focus:outline-none focus:border-[#FF4D2E]" />
+                   class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 rounded-lg text-sm focus:outline-none focus:border-[#FF4D2E]" />
           </label>
           <label class="block">
             <span class="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">Quota maximum autorisé (Mo)</span>
             <input v-model.number="form.max_quota_mb" type="number" min="100"
-                   class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 rounded-lg text-sm focus:outline-none focus:border-[#FF4D2E]" />
+                   class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 rounded-lg text-sm focus:outline-none focus:border-[#FF4D2E]" />
           </label>
         </div>
       </div>
 
       <!-- Backup -->
-      <div class="bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 p-5">
+      <div class="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-700 p-5">
         <h2 class="font-bold mb-1">Sauvegardes automatiques</h2>
         <p class="text-xs text-gray-500 mb-4">Génère un tar.gz quotidien dans <code>volumes/backups/</code> (postgres dump + maildirs).</p>
         <label class="flex items-center gap-3 cursor-pointer mb-3">
@@ -41,12 +41,12 @@
         <label class="block max-w-xs" :class="!form.backup_enabled ? 'opacity-40 pointer-events-none' : ''">
           <span class="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">Heure UTC (0-23)</span>
           <input v-model.number="form.backup_hour_utc" type="number" min="0" max="23"
-                 class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 rounded-lg text-sm focus:outline-none focus:border-[#FF4D2E]" />
+                 class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 rounded-lg text-sm focus:outline-none focus:border-[#FF4D2E]" />
         </label>
       </div>
 
       <!-- IA Noliae -->
-      <div class="bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 p-5">
+      <div class="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-700 p-5">
         <h2 class="font-bold mb-1">Intégration IA Noliae (optionnelle)</h2>
         <p class="text-xs text-gray-500 mb-4">
           Branche le webmail sur l'IA hébergée par Noliae (smart-reply, traduction, résumé, anti-phishing).
@@ -61,7 +61,7 @@
             <span class="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">Clé API Noliae</span>
             <input v-model="form.noliae_ai_api_key" type="password" autocomplete="off"
                    placeholder="nl_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                   class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 rounded-lg text-sm font-mono focus:outline-none focus:border-[#FF4D2E]" />
+                   class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 rounded-lg text-sm font-mono focus:outline-none focus:border-[#FF4D2E]" />
             <p class="text-[11px] text-gray-500 mt-1.5">
               Obtiens ta clé sur <a href="https://account.noliae.com/api-keys" target="_blank" class="text-[#FF4D2E] underline">account.noliae.com/api-keys</a> (compte Noliae requis). La clé est stockée chiffrée dans ta base.
             </p>
@@ -71,13 +71,13 @@
       </div>
 
       <!-- Compte admin -->
-      <div class="bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 p-5">
+      <div class="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-700 p-5">
         <h2 class="font-bold mb-1">Compte administrateur</h2>
         <p class="text-xs text-gray-500 mb-4">L'utilisateur dont l'email correspond a accès au panneau /admin.</p>
         <label class="block">
           <span class="block text-[11px] uppercase tracking-wider text-gray-500 mb-1">Email de l'admin</span>
           <input v-model="form.admin_email" type="email" required
-                 class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 rounded-lg text-sm focus:outline-none focus:border-[#FF4D2E]" />
+                 class="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 rounded-lg text-sm focus:outline-none focus:border-[#FF4D2E]" />
         </label>
         <p class="text-[11px] text-amber-600 mt-2">⚠ Si tu changes l'email, le compte mail correspondant doit déjà exister (sinon plus personne n'aura accès à /admin).</p>
       </div>

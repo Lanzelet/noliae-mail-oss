@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 flex">
+  <div class="admin-shell admin-form min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-gray-100 flex">
     <!-- ── Sidebar Exchange-style ──────────────────────────────────── -->
-    <aside :class="['fixed lg:sticky top-0 inset-y-0 z-30 bg-white dark:bg-zinc-950 border-r border-gray-200 dark:border-zinc-800 transition-transform duration-200 ease-in-out',
+    <aside :class="['fixed lg:sticky top-0 inset-y-0 z-30 bg-white dark:bg-zinc-900 border-r border-gray-200 dark:border-zinc-800 transition-transform duration-200 ease-in-out',
                     'w-64 flex flex-col h-screen', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0']">
       <div class="px-5 py-4 border-b border-gray-100 dark:border-zinc-800">
         <Link href="/admin" class="flex items-center gap-2 group">
@@ -22,7 +22,7 @@
             :class="['flex items-center gap-2 px-3 py-2 rounded-lg transition mb-0.5',
                      isActive(t.href)
                        ? 'bg-[#FF4D2E]/10 text-[#FF4D2E] font-semibold'
-                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-900']">
+                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800']">
             <span class="w-4 text-center">{{ t.emoji }}</span>
             <span class="flex-1 truncate">{{ t.label }}</span>
             <span v-if="t.badge" class="text-[10px] font-bold bg-[#FF4D2E] text-white px-1.5 py-0.5 rounded">{{ t.badge }}</span>
@@ -32,11 +32,11 @@
 
       <div class="border-t border-gray-100 dark:border-zinc-800 p-3 space-y-1">
         <a href="/webmail"
-          class="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-900 text-sm">
+          class="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 text-sm">
           <span class="w-4 text-center">📧</span>Retour au webmail
         </a>
         <a href="/account"
-          class="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-900 text-sm">
+          class="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 text-sm">
           <span class="w-4 text-center">👤</span>Mon compte
         </a>
       </div>
@@ -48,7 +48,7 @@
 
     <!-- ── Main area ─────────────────────────────────────────────── -->
     <div class="flex-1 min-w-0 flex flex-col">
-      <header class="bg-white dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 sticky top-0 z-10">
+      <header class="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 sticky top-0 z-10">
         <div class="px-5 py-3 flex items-center justify-between gap-3">
           <div class="flex items-center gap-3 min-w-0">
             <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden text-gray-500 hover:text-gray-900 dark:hover:text-gray-100">
@@ -63,7 +63,7 @@
               userRole === 'owner' ? 'bg-purple-100 text-purple-700' :
               userRole === 'admin' ? 'bg-red-100 text-red-700' :
               'bg-blue-100 text-blue-700']">{{ userRole }}</span>
-            <button @click="logout" type="button" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 dark:hover:bg-zinc-900 hover:text-[#FF4D2E]">
+            <button @click="logout" type="button" class="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-[#FF4D2E]">
               Déconnexion
             </button>
           </div>

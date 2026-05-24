@@ -9,7 +9,7 @@
       </div>
       <div class="flex-1">
         <p class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
-          Une boîte mail partagée (comme <code class="px-1.5 py-0.5 bg-white dark:bg-zinc-900 rounded text-[11px] font-mono border border-gray-200 dark:border-zinc-700">support@</code>) à laquelle plusieurs utilisateurs accèdent depuis leur propre compte — exactement comme dans Outlook Microsoft 365.
+          Une boîte mail partagée (comme <code class="px-1.5 py-0.5 bg-white dark:bg-zinc-900 rounded text-[11px] font-mono border border-gray-300 dark:border-zinc-600">support@</code>) à laquelle plusieurs utilisateurs accèdent depuis leur propre compte — exactement comme dans Outlook Microsoft 365.
         </p>
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
           Une fois l'accès donné, l'utilisateur trouve un sélecteur d'identité en haut du webmail pour basculer entre sa boîte perso et chaque boîte partagée.
@@ -17,10 +17,10 @@
       </div>
     </div>
 
-    <form @submit.prevent="create" class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6 shadow-sm">
+    <form @submit.prevent="create" class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6 shadow-sm">
       <h2 class="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">Nouvelle boîte partagée</h2>
       <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
-        <div class="md:col-span-4 flex items-center bg-gray-50 dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-700 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 overflow-hidden">
+        <div class="md:col-span-4 flex items-center bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 overflow-hidden">
           <input v-model="form.local" required placeholder="support" class="flex-1 min-w-0 px-3 py-2.5 text-sm bg-transparent focus:outline-none font-mono"/>
           <span class="px-1.5 text-gray-300">@</span>
           <select v-model="form.domain_id" required class="px-2 py-2.5 text-sm bg-transparent border-l border-gray-200 dark:border-zinc-700 font-mono focus:outline-none">
@@ -28,9 +28,9 @@
           </select>
         </div>
         <input v-model="form.display_name" required placeholder="Nom affiché (« Support Client »)"
-               class="md:col-span-4 px-3 py-2.5 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"/>
+               class="md:col-span-4 px-3 py-2.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"/>
         <input v-model.number="form.quota_mb" type="number" min="100" placeholder="Quota Mo (10240)"
-               class="md:col-span-2 px-3 py-2.5 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-blue-500"/>
+               class="md:col-span-2 px-3 py-2.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-blue-500"/>
         <button type="submit" class="md:col-span-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 active:scale-[0.98] transition shadow-sm">
           + Créer
         </button>
@@ -40,7 +40,7 @@
 
     <div v-if="mailboxes.length" class="space-y-2">
       <Link v-for="m in mailboxes" :key="m.id" :href="`/admin/shared/${m.id}`"
-            class="block group bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4 hover:shadow-md hover:border-blue-500/30 transition">
+            class="block group bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4 hover:shadow-md hover:border-blue-500/30 transition">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center shrink-0 font-bold">
             {{ (m.display_name || m.email).charAt(0).toUpperCase() }}
@@ -62,7 +62,7 @@
       </Link>
     </div>
 
-    <div v-else class="bg-white dark:bg-zinc-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-12 text-center">
+    <div v-else class="bg-white dark:bg-zinc-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-12 text-center">
       <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8">
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>

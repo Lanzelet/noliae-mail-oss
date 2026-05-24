@@ -8,26 +8,26 @@
     <template v-else-if="stat">
       <!-- Compteurs top -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4">
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4">
           <div class="text-3xl font-black text-[#FF4D2E]">{{ fmt(stat.scanned) }}</div>
           <div class="text-[10px] uppercase tracking-wider text-gray-500 mt-1">Mails scannés</div>
         </div>
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4">
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4">
           <div class="text-3xl font-black text-rose-600">{{ fmt(stat.actions?.reject || 0) }}</div>
           <div class="text-[10px] uppercase tracking-wider text-gray-500 mt-1">Rejetés (spam)</div>
         </div>
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4">
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4">
           <div class="text-3xl font-black text-amber-500">{{ fmt(stat.actions?.greylist || 0) }}</div>
           <div class="text-[10px] uppercase tracking-wider text-gray-500 mt-1">Greylistés</div>
         </div>
-        <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4">
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4">
           <div class="text-3xl font-black text-emerald-600">{{ fmt(stat.actions?.['no action'] || 0) }}</div>
           <div class="text-[10px] uppercase tracking-wider text-gray-500 mt-1">Sains</div>
         </div>
       </div>
 
       <!-- Détail actions : scale visuelle -->
-      <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6">
+      <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="font-bold">Seuils d'action</h2>
           <span class="text-[11px] text-gray-500">Plus le score d'un mail est élevé, plus l'action est sévère</span>
@@ -74,7 +74,7 @@
       </div>
 
       <!-- Apprentissage (bayes) -->
-      <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6">
+      <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6">
         <h2 class="font-bold mb-3">Apprentissage bayésien</h2>
         <div class="grid grid-cols-2 gap-4 text-sm">
           <div>
@@ -92,14 +92,14 @@
       </div>
 
       <!-- History -->
-      <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden mb-6">
+      <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden mb-6">
         <div class="p-5 border-b border-gray-100 dark:border-zinc-700 flex items-center justify-between">
           <h2 class="font-bold">Derniers mails scannés ({{ (history || []).length }})</h2>
           <button @click="refresh" class="text-xs text-[#FF4D2E] hover:underline">↻ Rafraîchir</button>
         </div>
         <div v-if="(history || []).length" class="overflow-x-auto">
           <table class="w-full text-xs">
-            <thead class="bg-gray-50 dark:bg-zinc-900 text-left text-[10px] uppercase tracking-wider text-gray-500">
+            <thead class="bg-white dark:bg-zinc-800 text-left text-[10px] uppercase tracking-wider text-gray-500">
               <tr>
                 <th class="px-3 py-2">Quand</th>
                 <th class="px-3 py-2">From</th>
@@ -127,12 +127,12 @@
       </div>
 
       <!-- Top symbols -->
-      <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5">
+      <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5">
         <h2 class="font-bold mb-3">Symboles les plus impactants (top 30)</h2>
         <p class="text-[11px] text-gray-500 mb-3">Règles de scoring rspamd avec leur poids. Les négatifs réduisent le score (= légitime), les positifs l'augmentent (= spam).</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
           <div v-for="s in symbols" :key="s.name"
-               class="flex items-start gap-2 p-2 bg-gray-50 dark:bg-zinc-900 rounded-lg">
+               class="flex items-start gap-2 p-2 bg-white dark:bg-zinc-800 rounded-lg">
             <span :class="['inline-block px-1.5 py-0.5 rounded text-[10px] font-bold font-mono shrink-0',
                           s.weight > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700']">
               {{ s.weight > 0 ? '+' : '' }}{{ s.weight.toFixed(1) }}

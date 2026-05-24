@@ -5,7 +5,7 @@
       Toutes les boîtes partagées
     </Link>
 
-    <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5 shadow-sm">
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5 shadow-sm">
       <div class="flex items-start gap-4">
         <div class="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center shrink-0 font-bold text-xl">
           {{ mailbox.display_name.charAt(0).toUpperCase() }}
@@ -19,14 +19,14 @@
       </div>
     </div>
 
-    <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden shadow-sm">
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden shadow-sm">
       <div class="p-5 border-b border-gray-100 dark:border-zinc-700">
         <h2 class="font-bold mb-1">Utilisateurs ayant accès ({{ acls.length }})</h2>
         <p class="text-[11px] text-gray-500 mb-3">Donne accès à un compte existant. Il pourra basculer sur cette boîte depuis son webmail.</p>
         <form @submit.prevent="grant" class="grid grid-cols-1 md:grid-cols-7 gap-2">
           <input v-model="form.user_email" type="email" required placeholder="utilisateur@domain"
-                 class="md:col-span-4 px-3.5 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"/>
-          <select v-model="form.role" class="md:col-span-2 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-blue-500">
+                 class="md:col-span-4 px-3.5 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"/>
+          <select v-model="form.role" class="md:col-span-2 px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-blue-500">
             <option value="read">👁 Lecture seule</option>
             <option value="send">✉️ Lecture + envoi</option>
             <option value="manage">🔑 Gestion complète</option>

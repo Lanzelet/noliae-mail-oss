@@ -10,7 +10,7 @@
       <div class="flex-1">
         <p class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
           Importe tous les mails d'un compte existant (Gmail, Outlook, OVH, autre serveur Noliae…) vers une boîte de ce serveur.
-          Utilise <code class="px-1.5 py-0.5 bg-white dark:bg-zinc-900 rounded text-[11px] font-mono border border-gray-200 dark:border-zinc-700">imapsync</code> sous le capot — idempotent (relançable sans dupliquer).
+          Utilise <code class="px-1.5 py-0.5 bg-white dark:bg-zinc-900 rounded text-[11px] font-mono border border-gray-300 dark:border-zinc-600">imapsync</code> sous le capot — idempotent (relançable sans dupliquer).
         </p>
         <p v-if="!imapsync_available" class="text-xs text-rose-600 font-bold mt-2">
           ⚠ <code>imapsync</code> n'est pas installé dans le container web — ajoute-le au Dockerfile (`apt install imapsync`) puis rebuild.
@@ -19,20 +19,20 @@
     </div>
 
     <!-- Form nouveau import -->
-    <form @submit.prevent="start" class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6 shadow-sm">
+    <form @submit.prevent="start" class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6 shadow-sm">
       <h2 class="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">Nouvelle migration</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="space-y-2">
           <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Compte SOURCE (à importer)</div>
           <input v-model="form.source_user" type="email" required placeholder="utilisateur@ancien-serveur.com"
-                 class="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15"/>
+                 class="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15"/>
           <input v-model="form.source_pass" type="password" required placeholder="Mot de passe IMAP"
-                 class="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15"/>
+                 class="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15"/>
           <div class="grid grid-cols-3 gap-2">
             <input v-model="form.source_host" required placeholder="imap.ancien.com"
-                   class="col-span-2 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-cyan-500"/>
+                   class="col-span-2 px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-cyan-500"/>
             <input v-model.number="form.source_port" type="number" required placeholder="993"
-                   class="px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-cyan-500"/>
+                   class="px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-cyan-500"/>
           </div>
           <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
             <input v-model="form.source_ssl" type="checkbox" class="w-4 h-4 accent-cyan-500"/>
@@ -49,7 +49,7 @@
         <div class="space-y-2">
           <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Compte DESTINATION (sur ce serveur)</div>
           <select v-model="form.dest_account_id" required
-                  class="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-cyan-500">
+                  class="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-cyan-500">
             <option :value="null">— Choisir un compte —</option>
             <option v-for="a in accounts" :key="a.id" :value="a.id">{{ a.email }}</option>
           </select>
@@ -68,7 +68,7 @@
 
     <!-- Liste -->
     <div v-if="migrations.length" class="space-y-2">
-      <div v-for="m in migrations" :key="m.id" class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4 shadow-sm">
+      <div v-for="m in migrations" :key="m.id" class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4 shadow-sm">
         <div class="flex items-center gap-3">
           <div :class="['w-10 h-10 rounded-xl flex items-center justify-center shrink-0', statusBg(m.status)]">
             <component :is="statusIcon(m.status)" />
@@ -102,7 +102,7 @@
       </div>
     </div>
 
-    <div v-else class="bg-white dark:bg-zinc-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-12 text-center">
+    <div v-else class="bg-white dark:bg-zinc-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-12 text-center">
       <p class="text-sm font-semibold mb-1">Aucune migration lancée</p>
       <p class="text-xs text-gray-500">Importe ta première boîte mail dans le formulaire ci-dessus.</p>
     </div>

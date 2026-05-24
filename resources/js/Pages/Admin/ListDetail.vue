@@ -6,7 +6,7 @@
     </Link>
 
     <!-- Carte info liste -->
-    <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5 shadow-sm">
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5 shadow-sm">
       <div class="flex items-start gap-4">
         <div class="w-12 h-12 rounded-2xl bg-violet-100 dark:bg-violet-950 text-violet-600 flex items-center justify-center shrink-0">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
@@ -41,12 +41,12 @@
     </div>
 
     <!-- Membres -->
-    <div class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden shadow-sm">
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden shadow-sm">
       <div class="p-5 border-b border-gray-100 dark:border-zinc-700">
         <h2 class="font-bold mb-3">Membres de la liste ({{ members.length }})</h2>
         <form @submit.prevent="addMember" class="flex gap-2">
           <input v-model="newMember" type="email" required placeholder="email@exemple.com"
-                 class="flex-1 px-3.5 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/15"/>
+                 class="flex-1 px-3.5 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/15"/>
           <button type="submit" class="px-5 py-2 bg-violet-600 text-white rounded-xl text-sm font-bold hover:bg-violet-700">+ Ajouter</button>
         </form>
         <p v-if="errors.member_email" class="mt-2 text-rose-600 text-xs">{{ errors.member_email }}</p>

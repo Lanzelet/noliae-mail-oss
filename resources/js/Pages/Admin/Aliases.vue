@@ -14,20 +14,20 @@
           (interne ou externe). Aucun changement aux en-têtes — c'est un vrai forward SMTP.
         </p>
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-          Exemple : <code class="px-1.5 py-0.5 bg-white dark:bg-zinc-900 rounded text-[11px] font-mono border border-gray-200 dark:border-zinc-700">contact@{{ defaultDomain }}</code>
+          Exemple : <code class="px-1.5 py-0.5 bg-white dark:bg-zinc-900 rounded text-[11px] font-mono border border-gray-300 dark:border-zinc-600">contact@{{ defaultDomain }}</code>
           <span class="mx-2 text-gray-400">→</span>
-          <code class="px-1.5 py-0.5 bg-white dark:bg-zinc-900 rounded text-[11px] font-mono border border-gray-200 dark:border-zinc-700">jean@gmail.com</code>
+          <code class="px-1.5 py-0.5 bg-white dark:bg-zinc-900 rounded text-[11px] font-mono border border-gray-300 dark:border-zinc-600">jean@gmail.com</code>
         </p>
       </div>
     </div>
 
     <!-- Formulaire création -->
-    <form @submit.prevent="add" class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6 shadow-sm">
+    <form @submit.prevent="add" class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-6 shadow-sm">
       <h2 class="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">Nouveau forward</h2>
 
       <div class="flex flex-col md:flex-row items-stretch md:items-center gap-2">
         <!-- Source : nom + domaine -->
-        <div class="flex flex-1 items-center bg-gray-50 dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-700 focus-within:border-[#FF4D2E] focus-within:ring-2 focus-within:ring-[#FF4D2E]/15 transition overflow-hidden">
+        <div class="flex flex-1 items-center bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 focus-within:border-[#FF4D2E] focus-within:ring-2 focus-within:ring-[#FF4D2E]/15 transition overflow-hidden">
           <input v-model="form.source_local" required placeholder="nom"
                  class="flex-1 min-w-0 px-3.5 py-2.5 text-sm bg-transparent focus:outline-none font-mono" />
           <span class="px-2 text-gray-300 dark:text-zinc-600">@</span>
@@ -46,7 +46,7 @@
 
         <!-- Destination -->
         <input v-model="form.destination" type="email" required placeholder="destination@exemple.com"
-               class="flex-1 min-w-0 px-3.5 py-2.5 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-[#FF4D2E] focus:ring-2 focus:ring-[#FF4D2E]/15 transition" />
+               class="flex-1 min-w-0 px-3.5 py-2.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono focus:outline-none focus:border-[#FF4D2E] focus:ring-2 focus:ring-[#FF4D2E]/15 transition" />
 
         <!-- Submit -->
         <button type="submit"
@@ -66,7 +66,7 @@
     <!-- Liste -->
     <div v-if="aliases.length" class="space-y-2">
       <div v-for="a in aliases" :key="a.id"
-           class="group bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4 hover:shadow-md hover:border-[#FF4D2E]/30 transition">
+           class="group bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-4 hover:shadow-md hover:border-[#FF4D2E]/30 transition">
         <div class="flex flex-col md:flex-row md:items-center gap-3">
           <!-- Source -->
           <div class="flex-1 min-w-0">
@@ -123,7 +123,7 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else class="bg-white dark:bg-zinc-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-12 text-center">
+    <div v-else class="bg-white dark:bg-zinc-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-12 text-center">
       <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gray-100 dark:bg-zinc-700 flex items-center justify-center">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-gray-400">
           <path d="M3 7h13l-3-3m3 3l-3 3"/>

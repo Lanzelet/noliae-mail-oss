@@ -1,15 +1,15 @@
 <template>
   <AdminLayout title="Domaines">
-    <form @submit.prevent="add" class="flex gap-2 mb-6 bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 p-4">
+    <form @submit.prevent="add" class="flex gap-2 mb-6 bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-700 p-4">
       <input v-model="form.name" type="text" required placeholder="exemple.fr"
-             class="flex-1 px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 rounded-lg text-sm focus:outline-none focus:border-[#FF4D2E]" />
+             class="flex-1 px-3 py-2 border border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 rounded-lg text-sm focus:outline-none focus:border-[#FF4D2E]" />
       <button type="submit" class="px-5 py-2 bg-[#FF4D2E] text-white rounded-lg text-sm font-semibold hover:bg-[#df3c1f]">Ajouter</button>
     </form>
     <p v-if="errors.name" class="text-rose-600 text-sm mb-3">{{ errors.name }}</p>
 
-    <div class="bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 overflow-hidden">
+    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-700 overflow-hidden">
       <table class="w-full text-sm">
-        <thead class="bg-gray-50 dark:bg-zinc-900 text-left text-[11px] uppercase tracking-wider text-gray-500">
+        <thead class="bg-white dark:bg-zinc-800 text-left text-[11px] uppercase tracking-wider text-gray-500">
           <tr><th class="px-4 py-3">Domaine</th><th class="px-4 py-3">Comptes</th><th class="px-4 py-3">Statut</th><th class="px-4 py-3 text-right">Actions</th></tr>
         </thead>
         <tbody>

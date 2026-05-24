@@ -27,7 +27,7 @@
 
     <div v-if="held.length" class="space-y-2">
       <div v-for="m in held" :key="m.queue_id"
-           class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden shadow-sm">
+           class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden shadow-sm">
         <div class="p-4 flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950 text-rose-600 flex items-center justify-center shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -62,14 +62,14 @@
             </button>
           </div>
         </div>
-        <div v-if="open[m.queue_id]" class="border-t border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 p-3">
+        <div v-if="open[m.queue_id]" class="border-t border-gray-100 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3">
           <pre v-if="previews[m.queue_id]" class="text-[11px] font-mono whitespace-pre-wrap text-gray-700 dark:text-gray-300 max-h-96 overflow-y-auto">{{ previews[m.queue_id] }}</pre>
           <p v-else class="text-xs text-gray-400 italic">Chargement…</p>
         </div>
       </div>
     </div>
 
-    <div v-else-if="available" class="bg-white dark:bg-zinc-800 rounded-2xl border-2 border-dashed border-emerald-200 dark:border-emerald-800 p-12 text-center">
+    <div v-else-if="available" class="bg-white dark:bg-zinc-900 rounded-2xl border-2 border-dashed border-emerald-200 dark:border-emerald-800 p-12 text-center">
       <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
           <polyline points="20 6 9 17 4 12"/>

@@ -2,7 +2,7 @@
   <AdminLayout title="Organisation">
     <div v-if="flash?.success" class="mb-4 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{{ flash.success }}</div>
 
-    <section class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5">
+    <section class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5">
       <h2 class="font-bold mb-1 flex items-center gap-2">
         <span class="w-7 h-7 rounded-lg bg-[#FF4D2E]/15 text-[#FF4D2E] flex items-center justify-center text-sm">🏢</span>
         Paramètres
@@ -12,30 +12,30 @@
         <div>
           <label class="text-[10px] uppercase tracking-wider text-gray-500">Nom</label>
           <input v-model="form.name" :disabled="role !== 'owner'" type="text" required maxlength="120"
-            class="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl"/>
+            class="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl"/>
         </div>
         <div>
           <label class="text-[10px] uppercase tracking-wider text-gray-500">Slug (URL identifiant)</label>
           <input v-model="form.slug" :disabled="role !== 'owner'" type="text" required maxlength="64" pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-            class="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono"/>
+            class="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl font-mono"/>
         </div>
         <p v-if="errors.slug" class="text-rose-600 text-xs md:col-span-2">{{ errors.slug }}</p>
         <button v-if="role === 'owner'" type="submit" class="md:col-span-2 px-4 py-2 bg-[#FF4D2E] text-white rounded-xl text-sm font-bold">Sauvegarder</button>
       </form>
     </section>
 
-    <section class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5">
+    <section class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5">
       <h2 class="font-bold mb-3">📊 Stats</h2>
       <div class="grid grid-cols-3 gap-3 text-center">
-        <div class="p-3 rounded-xl bg-gray-50 dark:bg-zinc-900">
+        <div class="p-3 rounded-xl bg-white dark:bg-zinc-800">
           <div class="text-2xl font-bold">{{ stats.members }}</div>
           <div class="text-[11px] text-gray-500 uppercase">Membres</div>
         </div>
-        <div class="p-3 rounded-xl bg-gray-50 dark:bg-zinc-900">
+        <div class="p-3 rounded-xl bg-white dark:bg-zinc-800">
           <div class="text-2xl font-bold">{{ stats.domains }}</div>
           <div class="text-[11px] text-gray-500 uppercase">Domaines</div>
         </div>
-        <div class="p-3 rounded-xl bg-gray-50 dark:bg-zinc-900">
+        <div class="p-3 rounded-xl bg-white dark:bg-zinc-800">
           <div class="text-2xl font-bold">{{ stats.accounts }}</div>
           <div class="text-[11px] text-gray-500 uppercase">Comptes</div>
         </div>
@@ -43,7 +43,7 @@
     </section>
 
     <!-- ═════ Branding : logo + footer login ═════ -->
-    <section class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5">
+    <section class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5 mb-5">
       <h2 class="font-bold mb-1 flex items-center gap-2">
         <span class="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-600 flex items-center justify-center text-sm">🎨</span>
         Branding pages de connexion
@@ -52,7 +52,7 @@
 
       <div class="flex items-start gap-5 mb-5">
         <div class="flex flex-col items-center gap-2">
-          <div class="w-28 h-28 rounded-xl bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 flex items-center justify-center overflow-hidden">
+          <div class="w-28 h-28 rounded-xl bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center overflow-hidden">
             <img v-if="logo_url" :src="logo_url" alt="Logo orga" class="max-w-full max-h-full object-contain"/>
             <span v-else class="text-gray-400 text-xs">Aucun logo</span>
           </div>
@@ -76,19 +76,19 @@
           <span class="block text-[10px] uppercase tracking-wider text-gray-500">Phrase d'accroche (footer)</span>
           <input v-model="brandingForm.footer_tagline" :disabled="role !== 'owner'" type="text" maxlength="120"
             placeholder="Messagerie souveraine, open source"
-            class="w-full mt-1 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg"/>
+            class="w-full mt-1 px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg"/>
         </label>
         <label class="block">
           <span class="block text-[10px] uppercase tracking-wider text-gray-500">Lien — texte affiché</span>
           <input v-model="brandingForm.footer_label" :disabled="role !== 'owner'" type="text" maxlength="80"
             placeholder="Aide / Mentions légales"
-            class="w-full mt-1 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg"/>
+            class="w-full mt-1 px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg"/>
         </label>
         <label class="block md:col-span-2">
           <span class="block text-[10px] uppercase tracking-wider text-gray-500">Lien — URL cible</span>
           <input v-model="brandingForm.footer_url" :disabled="role !== 'owner'" type="url" maxlength="255"
             placeholder="https://exemple.com/aide"
-            class="w-full mt-1 px-3 py-2 text-sm bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg font-mono"/>
+            class="w-full mt-1 px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg font-mono"/>
         </label>
         <p class="text-[11px] text-gray-500 md:col-span-3">
           Laisse vide pour ne rien afficher. Pour retirer complètement le lien Github par défaut : mets <code>label</code> et <code>url</code> à vide.
@@ -99,13 +99,13 @@
       </form>
     </section>
 
-    <section class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5">
+    <section class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 p-5">
       <div class="flex items-center justify-between mb-3">
         <h2 class="font-bold">🌐 Domaines</h2>
         <Link href="/admin/domains" class="text-xs text-[#FF4D2E] hover:underline">Gérer →</Link>
       </div>
       <div class="space-y-1.5">
-        <div v-for="d in domains" :key="d.id" class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-zinc-900">
+        <div v-for="d in domains" :key="d.id" class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white dark:bg-zinc-800">
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <code class="text-sm font-mono truncate">{{ d.name }}</code>
             <span v-if="d.is_primary" class="text-[10px] uppercase font-bold bg-[#FF4D2E]/15 text-[#FF4D2E] px-1.5 py-0.5 rounded">⭐ primaire</span>

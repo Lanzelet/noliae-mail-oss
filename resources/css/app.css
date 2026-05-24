@@ -5,3 +5,43 @@
 :root {
   --noliae: #FF4D2E;
 }
+
+/* ─── Form controls : palette dark mode cohérente pour l'admin ─────────────
+   Inputs/select/textarea natifs DANS le panneau admin doivent être lisibles
+   (background lighter que le card parent pour pop) — quand on ne passe pas
+   par <Field/>. Scopé à .admin-form pour ne pas casser le webmail. */
+@layer components {
+  .admin-form input[type="text"],
+  .admin-form input[type="email"],
+  .admin-form input[type="password"],
+  .admin-form input[type="number"],
+  .admin-form input[type="tel"],
+  .admin-form input[type="url"],
+  .admin-form input[type="search"],
+  .admin-form input:not([type]),
+  .admin-form select,
+  .admin-form textarea {
+    @apply bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100
+           border border-gray-300 dark:border-zinc-600 rounded-lg
+           focus:border-[#FF4D2E] focus:ring-2 focus:ring-[#FF4D2E]/20 focus:outline-none
+           placeholder:text-gray-400 dark:placeholder:text-zinc-500;
+  }
+}
+
+/* Palette globale admin (variables centralisées pour ajuster d'un seul endroit) */
+.admin-shell {
+  --admin-bg:        theme('colors.gray.50');
+  --admin-card:      theme('colors.white');
+  --admin-card-alt:  theme('colors.gray.50');
+  --admin-border:    theme('colors.gray.200');
+  --admin-text:      theme('colors.gray.900');
+  --admin-text-mute: theme('colors.gray.500');
+}
+.dark .admin-shell {
+  --admin-bg:        theme('colors.zinc.950');
+  --admin-card:      theme('colors.zinc.900');
+  --admin-card-alt:  theme('colors.zinc.800');
+  --admin-border:    theme('colors.zinc.700');
+  --admin-text:      theme('colors.gray.100');
+  --admin-text-mute: theme('colors.zinc.400');
+}

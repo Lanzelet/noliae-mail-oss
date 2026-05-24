@@ -4,9 +4,9 @@
       500 dernières actions administratives. Historique conservé indéfiniment en DB pour traçabilité (RGPD : <code class="text-xs">DELETE FROM audit_log</code> pour purger).
     </p>
 
-    <div v-if="entries.length" class="bg-white dark:bg-zinc-800 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden shadow-sm">
+    <div v-if="entries.length" class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden shadow-sm">
       <table class="w-full text-sm">
-        <thead class="bg-gray-50 dark:bg-zinc-900 text-left text-[11px] uppercase tracking-wider text-gray-500">
+        <thead class="bg-white dark:bg-zinc-800 text-left text-[11px] uppercase tracking-wider text-gray-500">
           <tr>
             <th class="px-4 py-3">Quand</th>
             <th class="px-4 py-3">Qui</th>
@@ -32,7 +32,7 @@
             </td>
           </tr>
           <template v-for="e in entries" :key="`m-${e.id}`">
-            <tr v-if="open[e.id] && e.metadata" class="border-t border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900">
+            <tr v-if="open[e.id] && e.metadata" class="border-t border-gray-100 dark:border-zinc-700 bg-white dark:bg-zinc-800">
               <td colspan="6" class="px-4 py-2">
                 <pre class="text-[11px] text-gray-600 dark:text-gray-300 overflow-x-auto">{{ JSON.stringify(JSON.parse(e.metadata), null, 2) }}</pre>
               </td>
@@ -42,7 +42,7 @@
       </table>
     </div>
 
-    <div v-else class="bg-white dark:bg-zinc-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-12 text-center">
+    <div v-else class="bg-white dark:bg-zinc-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-zinc-700 p-12 text-center">
       <p class="text-sm text-gray-500">Aucune action admin loguée pour le moment.</p>
     </div>
   </AdminLayout>
