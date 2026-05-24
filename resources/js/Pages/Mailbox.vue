@@ -330,7 +330,6 @@
             <div class="relative shrink-0">
               <img class="w-9 h-9 rounded-full object-cover bg-gray-100"
                    :src="avatarOrLogo(m.from_hash, m.from || m.from_mail, m.from_mail)"
-                   @load="onLogoLoad($event, m.from_mail)"
                    @error="onLogoError($event, m.from_mail)" alt=""/>
               <span v-if="isBrand(m.from_mail)" title="Marque vérifiée"
                     class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-sky-500 border-2 border-white flex items-center justify-center">
@@ -509,7 +508,6 @@
             <div class="relative shrink-0">
               <img class="w-10 h-10 rounded-full object-cover bg-gray-100"
                    :src="avatarOrLogo(selected.from_hash, selected.from || selected.from_mail, selected.from_mail)"
-                   @load="onLogoLoad($event, selected.from_mail)"
                    @error="onLogoError($event, selected.from_mail)" alt=""/>
               <span v-if="isBrand(selected.from_mail)" title="Marque vérifiée"
                     class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-sky-500 border-2 border-white flex items-center justify-center">
@@ -1846,38 +1844,38 @@ function brandLogoUrl(email) {
 function avatarOrLogo(hash, name, email) {
   return brandLogoUrl(email) || avatarUrl(hash, name);
 }
-// Coche bleue : on ne l'affiche QUE quand le favicon a réellement chargé
-// avec succès. DuckDuckGo renvoie souvent une icône générique au lieu d'un
-// 404, donc on check aussi la taille naturelle (un favicon réel >= 16px).
-const verifiedLogos = reactive(new Set());
-const failedLogos = reactive(new Set());
+// Allowlist curated des marques "vérifiées" : seules celles-ci ont la coche bleue.
+// Match par suffixe de domaine (netflix.com, ses sous-domaines, .fr, .es, etc.)
+const VERIFIED_BRANDS = [
+  'netflix.', 'amazon.', 'google.', 'gmail.', 'youtube.', 'microsoft.', 'office.',
+  'apple.', 'icloud.', 'github.', 'gitlab.', 'stripe.', 'paypal.', 'cloudflare.',
+  'ovh.', 'hetzner.', 'scaleway.', 'aws.amazon.com', 'digitalocean.', 'linode.',
+  'tf1.', 'lemonde.', 'lefigaro.', 'liberation.', 'mediapart.', 'francetv.',
+  'lci.', 'bfmtv.', 'rtl.', 'europe1.', 'rmc.', 'ouest-france.', 'leparisien.',
+  'sncf.', 'oui.sncf', 'ratp.', 'airfrance.', 'transavia.',
+  'free.fr', 'orange.fr', 'sfr.fr', 'bouyguestelecom.', 'sosh.',
+  'banquepopulaire.', 'creditmutuel.', 'caisse-epargne.', 'societegenerale.',
+  'bnpparibas.', 'lcl.', 'creditagricole.', 'hellobank.', 'fortuneo.', 'boursorama.',
+  'revolut.', 'n26.', 'wise.', 'lydia.', 'qonto.',
+  'linkedin.', 'twitter.', 'x.com', 'facebook.', 'instagram.', 'meta.', 'whatsapp.',
+  'slack.', 'discord.', 'zoom.us', 'spotify.', 'deezer.', 'twitch.',
+  'fnac.', 'darty.', 'cdiscount.', 'leboncoin.', 'vinted.', 'shein.', 'zalando.',
+  'airbnb.', 'booking.', 'expedia.', 'tripadvisor.',
+  'uber.', 'deliveroo.', 'ubereats.', 'doctolib.',
+  'edf.', 'engie.', 'totalenergies.', 'enedis.',
+  'impots.gouv.fr', 'service-public.', 'ameli.', 'caf.', 'pole-emploi.', 'urssaf.',
+  'noliae.',
+];
 function brandDomain(email) {
   const m = String(email || '').toLowerCase().match(/@([a-z0-9.-]+\.[a-z]{2,})$/);
   return m ? m[1] : '';
 }
 function isBrand(email) {
   const d = brandDomain(email);
-  return !!d && verifiedLogos.has(d);
-}
-function onLogoLoad(e, email) {
-  const d = brandDomain(email);
-  if (!d || PERSONAL_DOMAINS.has(d)) return;
-  const w = e.target.naturalWidth;
-  const h = e.target.naturalHeight;
-  // Critères stricts pour "marque vérifiée" :
-  // - taille >= 32px (DuckDuckGo renvoie 16x16 globe pour domaines inconnus)
-  // - ratio carré (les vrais logos sont 1:1, les fallbacks souvent rectangulaires)
-  if (w >= 32 && h >= 32 && Math.abs(w - h) <= 2) {
-    verifiedLogos.add(d);
-  } else {
-    failedLogos.add(d);
-    // Force le fallback avatar puisque ce n'est pas un vrai logo
-    if (w < 32) e.target.src = avatarUrl(null, email) || '';
-  }
+  if (!d || PERSONAL_DOMAINS.has(d)) return false;
+  return VERIFIED_BRANDS.some(b => d === b.replace(/\.$/, '') || d.includes(b));
 }
 function onLogoError(e, email) {
-  const d = brandDomain(email);
-  if (d) failedLogos.add(d);
   e.target.src = avatarUrl(null, email) || '';
 }
 function initials(s) {
