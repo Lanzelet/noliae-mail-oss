@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libjson-perl libjson-webtoken-perl libtest-fatal-perl libtest-mockmodule-perl \
         libtest-pod-perl libtest-requires-perl libunicode-string-perl libregexp-common-perl \
         libio-tee-perl libfile-tail-perl libsys-meminfo-perl libio-compress-perl libfile-touch-perl \
+        libencode-imaputf7-perl libcrypt-openssl-rsa-perl libfile-slurp-perl libauthen-ntlm-perl libproc-processtable-perl \
  && docker-php-ext-configure gd --with-freetype --with-jpeg \
  && docker-php-ext-install zip mbstring opcache bcmath sockets pdo_pgsql gd intl \
  && pecl install redis && docker-php-ext-enable redis \
