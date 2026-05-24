@@ -106,25 +106,30 @@ class ImapMigrationRunner
         }
 
         // Process toujours en vie ?
-        $alive = $job->pid && posix_kill($job->pid, 0);
+        $alive = $job->pid && function_exists('posix_kill') && @posix_kill($job->pid, 0);
         $status = $job->status;
         $error  = $job->error;
         $finishedAt = $job->finished_at;
         if (! $alive && $job->pid) {
             $finishedAt = now();
-            // Cherche un marqueur de succès / échec
-            if (str_contains($tail, 'Detected 0 errors') || preg_match('/Reconnect on Host\d : tries=1/', $tail) === false) {
-                if (preg_match('/Detected (\d+) errors/i', $tail, $m) && (int) $m[1] === 0) {
+            // Marqueurs imapsync : on cherche d'abord un échec explicite,
+            // puis un succès, sinon on tombe en "failed" (mort inattendue).
+            if (preg_match('/Detected (\d+) errors/i', $tail, $m)) {
+                $nbErr = (int) $m[1];
+                if ($nbErr === 0) {
                     $status = 'success';
-                } elseif (preg_match('/Tail: (\d+) errors/', $tail, $m) && (int) $m[1] > 0) {
-                    $status = 'failed';
-                    $error  = 'imapsync a terminé avec ' . $m[1] . ' erreurs (voir log).';
                 } else {
-                    $status = 'success';
+                    $status = 'failed';
+                    $error  = "imapsync a terminé avec $nbErr erreurs (voir log).";
                 }
+            } elseif (str_contains($tail, 'Exiting with return value 0')) {
+                $status = 'success';
+            } elseif (preg_match('/Tail: (\d+) errors/', $tail, $m) && (int) $m[1] > 0) {
+                $status = 'failed';
+                $error  = 'imapsync a terminé avec ' . $m[1] . ' erreurs (voir log).';
             } else {
                 $status = 'failed';
-                $error  = 'imapsync s\'est arrêté de manière inattendue.';
+                $error  = 'imapsync s\'est arrêté de manière inattendue (pas de marqueur de fin).';
             }
         }
 
@@ -144,7 +149,9 @@ class ImapMigrationRunner
     {
         $job = DB::table('mail_migrations')->where('id', $migrationId)->first();
         if (! $job || ! $job->pid) return;
-        @posix_kill($job->pid, 15);
+        if (function_exists('posix_kill')) {
+            @posix_kill($job->pid, 15);
+        }
         DB::table('mail_migrations')->where('id', $migrationId)->update([
             'status' => 'cancelled', 'finished_at' => now(), 'updated_at' => now(),
         ]);

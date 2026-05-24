@@ -544,7 +544,12 @@ class AdminController extends Controller
         $this->authorize_admin($request);
         $dom = DB::table('mail_domains')->where('id', $id)->first();
         abort_unless($dom, 404);
-        $serverIp = trim(@file_get_contents('https://api.ipify.org') ?: '<IP-SERVEUR>');
+        // Cache 24h pour éviter de marteler ipify à chaque load de la page DNS.
+        $serverIp = \Illuminate\Support\Facades\Cache::remember('server_public_ip', 86400, function () {
+            $ctx = stream_context_create(['http' => ['timeout' => 3]]);
+            $ip  = @file_get_contents('https://api.ipify.org', false, $ctx);
+            return trim((string) $ip) ?: '<IP-SERVEUR>';
+        });
         // Lecture clé DKIM si présente
         // Lecture clé DKIM publique : on essaie plusieurs chemins (opendkim, rspamd, env).
         $candidates = [
@@ -759,12 +764,28 @@ class AdminController extends Controller
     private function topSymbols(RspamdClient $r): array
     {
         $all = $r->get('/symbols') ?? [];
-        // L'API renvoie un dict de groupes -> liste de symboles avec score moyen.
-        // On extrait les 30 symboles avec le frequency.weight le plus eleve.
+        // L'API rspamd renvoie selon les versions :
+        //   - une liste plate [ {group, rules:[...]} , ... ]   (3.x récent)
+        //   - un dict { group => {rules:[...]} }              (3.x ancien)
+        //   - parfois directement [ {symbol, weight, ...}, ... ]
+        // On supporte les 3 formes.
         $flat = [];
-        foreach ($all as $group => $items) {
+        foreach ($all as $key => $items) {
             if (! is_array($items)) continue;
-            foreach ($items['rules'] ?? [] as $rule) {
+            // Forme C : entrée plate "symbole"
+            if (isset($items['symbol']) || isset($items['weight'])) {
+                $flat[] = [
+                    'name'   => $items['symbol'] ?? (is_string($key) ? $key : ''),
+                    'group'  => $items['group'] ?? '',
+                    'weight' => (float) ($items['weight'] ?? 0),
+                    'desc'   => $items['description'] ?? '',
+                ];
+                continue;
+            }
+            // Formes A / B : groupe -> rules[]
+            $group = is_string($key) ? $key : (string) ($items['group'] ?? '');
+            foreach ($items['rules'] ?? ($items['symbols'] ?? []) as $rule) {
+                if (! is_array($rule)) continue;
                 $flat[] = [
                     'name'   => $rule['symbol'] ?? '',
                     'group'  => $group,

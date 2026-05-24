@@ -79,14 +79,17 @@ class Handler(socketserver.StreamRequestHandler):
     def handle(self):
         attrs = {}
         while True:
-            line = self.rfile.readline().decode('utf-8', errors='replace').rstrip('\r\n')
-            if line == '':
-                result = check_policy(attrs)
-                self.wfile.write((result + '\n\n').encode())
-                attrs = {}
-                continue
-            if not line:
+            raw = self.rfile.readline()
+            if not raw:                            # EOF = client a fermé socket
                 break
+            line = raw.decode('utf-8', errors='replace').rstrip('\r\n')
+            if line == '':                         # ligne vide = fin de requete Postfix
+                if attrs:
+                    result = check_policy(attrs)
+                    self.wfile.write((result + '\n\n').encode())
+                    self.wfile.flush()
+                    attrs = {}
+                continue
             if '=' in line:
                 k, v = line.split('=', 1)
                 attrs[k] = v

@@ -25,6 +25,9 @@ return new class extends Migration
             ['key' => 'noliae_ai_api_key',      'value' => '',                 'updated_at' => $now], // cle API fournie par Noliae
             ['key' => 'backup_enabled',         'value' => '0',                'updated_at' => $now],
             ['key' => 'backup_hour_utc',        'value' => '0',                'updated_at' => $now],
+            // L'admin_email est lu depuis settings (avec fallback env ADMIN_EMAIL).
+            // Doit etre seedé pour que le toggle UI persiste correctement.
+            ['key' => 'admin_email',            'value' => (string) env('ADMIN_EMAIL', ''), 'updated_at' => $now],
         ]);
     }
     public function down(): void { Schema::dropIfExists('app_settings'); }

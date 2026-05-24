@@ -3,7 +3,8 @@
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        postfix postfix-pgsql ca-certificates gettext-base rsyslog \
+        postfix postfix-pgsql postfix-pcre \
+        ca-certificates gettext-base rsyslog openssl netcat-openbsd \
  && rm -rf /var/lib/apt/lists/*
 
 # Configs templates : seront rendues au démarrage via envsubst (cf entrypoint).

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Log;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 
@@ -84,7 +85,7 @@ class MailQueue
                         $handler($payload);
                         $msg->ack();
                     } catch (\Throwable $e) {
-                        \Log::error("[mail-worker:$queue] " . $e->getMessage());
+                        Log::error("[mail-worker:$queue] " . $e->getMessage());
                         $retry = (int) ($payload['_retry'] ?? 0);
                         if ($retry < 2) {
                             $payload['_retry'] = $retry + 1;

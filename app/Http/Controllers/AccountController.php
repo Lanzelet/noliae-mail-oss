@@ -50,10 +50,8 @@ class AccountController extends Controller
             'current_password' => 'required|string',
             'new_password'     => 'required|string|min:10|max:200|different:current_password',
         ]);
-        // Vérifie le password actuel
-        $stored = $acc->password;
-        $hash = str_starts_with($stored, '{BLF-CRYPT}') ? substr($stored, 11) : $stored;
-        if (! password_verify($data['current_password'], $hash)) {
+        // Vérifie le password actuel (schemes Dovecot supportés)
+        if (! $this->verifyDovecotPassword($data['current_password'], (string) $acc->password)) {
             return back()->withErrors(['current_password' => 'Mot de passe actuel incorrect.']);
         }
         $newHash = '{BLF-CRYPT}' . password_hash($data['new_password'], PASSWORD_BCRYPT, ['cost' => 12]);
@@ -116,9 +114,7 @@ class AccountController extends Controller
     {
         $acc = $this->account($request);
         $data = $request->validate(['password' => 'required|string']);
-        $stored = $acc->password;
-        $hash = str_starts_with($stored, '{BLF-CRYPT}') ? substr($stored, 11) : $stored;
-        if (! password_verify($data['password'], $hash)) {
+        if (! $this->verifyDovecotPassword($data['password'], (string) $acc->password)) {
             return back()->withErrors(['password' => 'Mot de passe incorrect.']);
         }
         DB::table('mail_accounts')->where('id', $acc->id)->update([
@@ -167,5 +163,30 @@ class AccountController extends Controller
         DB::table('smtp_tokens')->where('id', $id)
             ->where('mail_account_id', $acc->id)->delete();
         return back()->with('success', 'Token SMTP révoqué.');
+    }
+
+    /**
+     * Vérifie un mot de passe selon le scheme Dovecot stocké en DB
+     * ({BLF-CRYPT}, {SHA512-CRYPT}, {CRYPT}, ou bcrypt brut).
+     */
+    private function verifyDovecotPassword(string $plain, string $stored): bool
+    {
+        $stored = trim($stored);
+        if ($stored === '') return false;
+        if (preg_match('/^\{([A-Z0-9-]+)\}(.+)$/', $stored, $m)) {
+            $scheme = strtoupper($m[1]);
+            $hash   = $m[2];
+            if (in_array($scheme, ['BLF-CRYPT', 'SHA512-CRYPT', 'SHA256-CRYPT', 'MD5-CRYPT', 'CRYPT'], true)) {
+                // crypt() détecte le format via le préfixe ($2y$ / $6$ / $5$ / $1$)
+                return hash_equals(crypt($plain, $hash), $hash);
+            }
+            if ($scheme === 'PLAIN' || $scheme === 'CLEARTEXT') {
+                return hash_equals($hash, $plain);
+            }
+            // Schemes non gérés ici : refuse plutôt que d'auto-passer.
+            return false;
+        }
+        // Pas de préfixe : on suppose bcrypt
+        return password_verify($plain, $stored);
     }
 }

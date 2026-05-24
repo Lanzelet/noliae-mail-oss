@@ -26,15 +26,19 @@ class RspamdClient
 
     public function get(string $path): ?array
     {
+        $headers = ['Accept: application/json'];
+        $pwd = (string) env('RSPAMD_PASSWORD', '');
+        if ($pwd !== '') {
+            // N'envoie le header Password que si un mdp est configuré : sans
+            // ça rspamd répond 403 même sur le secure_ip d'un réseau local.
+            $headers[] = 'Password: ' . $pwd;
+        }
         $ch = curl_init($this->url($path));
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 5,
             CURLOPT_CONNECTTIMEOUT => 2,
-            CURLOPT_HTTPHEADER     => [
-                'Password: ' . (string) env('RSPAMD_PASSWORD', ''),
-                'Accept: application/json',
-            ],
+            CURLOPT_HTTPHEADER     => $headers,
         ]);
         $body = curl_exec($ch);
         $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);

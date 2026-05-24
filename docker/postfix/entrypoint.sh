@@ -6,15 +6,19 @@ set -e
 : "${DB_NAME:=noliaemail}"
 : "${DB_USER:=noliae}"
 : "${DB_PASSWORD:?DB_PASSWORD required}"
+: "${MAIL_TRUSTED_NETS:=127.0.0.0/8 [::1]/128 172.16.0.0/12}"
 
-# Rend les .cf depuis les templates (substitue ${MAIL_DOMAIN} etc.)
-envsubst < /etc/postfix/main.cf.tmpl   > /etc/postfix/main.cf
-envsubst < /etc/postfix/master.cf.tmpl > /etc/postfix/master.cf
+# Rend les .cf depuis les templates : LIMITER envsubst aux vars qu'on veut
+# substituer, sinon il vide aussi $myhostname, $data_directory etc.
+VARS='$MAIL_DOMAIN $MAIL_TRUSTED_NETS $DB_HOST $DB_NAME $DB_USER $DB_PASSWORD'
+envsubst "$VARS" < /etc/postfix/main.cf.tmpl   > /etc/postfix/main.cf
+envsubst "$VARS" < /etc/postfix/master.cf.tmpl > /etc/postfix/master.cf
 
-# Rend les requêtes pgsql/*.cf
+# Rend les requêtes pgsql/*.cf — uniquement les vars DB
+DB_VARS='$DB_HOST $DB_NAME $DB_USER $DB_PASSWORD'
 for f in /etc/postfix/pgsql/*.cf; do
   if grep -q '\${' "$f"; then
-    tmp=$(mktemp); envsubst < "$f" > "$tmp"; mv "$tmp" "$f"
+    tmp=$(mktemp); envsubst "$DB_VARS" < "$f" > "$tmp"; mv "$tmp" "$f"
   fi
 done
 

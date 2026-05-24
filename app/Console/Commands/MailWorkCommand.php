@@ -22,8 +22,11 @@ class MailWorkCommand extends Command
     {
         $this->info('[mail:work] worker démarré (outbox + keyimport + scheduler)');
 
-        // Ticks d'arrière-plan : scheduler + purge corbeille 30 j
-        register_tick_function(function () use ($sched, $queue) {
+        // Scheduler intégré : registers une closure que le consumer appelle
+        // périodiquement entre chaque ack. declare(ticks=N) ne fonctionnait
+        // pas (doit être au top-level + déprécié PHP 8.1+). On utilise un
+        // signal handler sur SIGALRM à la place pour ticker toutes les 60s.
+        $tick = function () use ($sched, $queue) {
             static $nextSched = 0, $nextPurge = 0;
             $now = time();
             if ($now >= $nextSched) {
@@ -38,7 +41,6 @@ class MailWorkCommand extends Command
                     $this->error('[scheduler] ' . $e->getMessage());
                 }
             }
-            // Purge des corbeilles toutes les 6 h
             if ($now >= $nextPurge) {
                 $nextPurge = $now + 21600;
                 try {
@@ -47,8 +49,12 @@ class MailWorkCommand extends Command
                     $this->error('[purge] ' . $e->getMessage());
                 }
             }
-        });
-        declare(ticks=1);
+        };
+        if (function_exists('pcntl_signal') && function_exists('pcntl_alarm')) {
+            pcntl_async_signals(true);
+            pcntl_signal(SIGALRM, function () use ($tick) { $tick(); pcntl_alarm(60); });
+            pcntl_alarm(60);
+        }
 
         $queue->consume([
             MailQueue::QUEUE => function (array $p) use ($sender) {
@@ -97,13 +103,18 @@ class MailWorkCommand extends Command
     private function autoPurgeTrash(): void
     {
         $mailbox = app(\App\Services\MailboxService::class);
-        // Postgres direct (les mail_accounts ne sont pas dans SQLite Laravel)
         $accounts = [];
         try {
-            $dsn = sprintf('pgsql:host=%s;port=%d;dbname=%s',
-                env('PG_MAIL_HOST'), (int) env('PG_MAIL_PORT', 5432), env('PG_MAIL_DB'));
-            $pdo = new \PDO($dsn, env('PG_MAIL_USER'), env('PG_MAIL_PASS'));
-            $accounts = $pdo->query('SELECT email FROM mail_accounts WHERE active=true')->fetchAll(\PDO::FETCH_COLUMN);
+            // OSS : la table mail_accounts est dans la DB Laravel par défaut.
+            // Si elle est ailleurs (SaaS), on retombe sur des creds explicites.
+            if (\Schema::hasTable('mail_accounts')) {
+                $accounts = \DB::table('mail_accounts')->where('active', true)->pluck('email')->all();
+            } else {
+                $dsn = sprintf('pgsql:host=%s;port=%d;dbname=%s',
+                    env('DB_HOST'), (int) env('DB_PORT', 5432), env('DB_DATABASE'));
+                $pdo = new \PDO($dsn, env('DB_USERNAME'), env('DB_PASSWORD'));
+                $accounts = $pdo->query('SELECT email FROM mail_accounts WHERE active=true')->fetchAll(\PDO::FETCH_COLUMN);
+            }
         } catch (\Throwable $e) { return; }
         $cutoff = time() - 30 * 86400;
         $purged = 0;

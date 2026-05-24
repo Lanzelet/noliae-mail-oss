@@ -101,17 +101,19 @@ class Handler(socketserver.StreamRequestHandler):
     def handle(self):
         attrs = {}
         while True:
-            line = self.rfile.readline().decode('utf-8', errors='replace').rstrip('\r\n')
-            if line == '':
-                # Fin de requete
-                sender = attrs.get('sender', '')
-                recipient = attrs.get('recipient', '')
-                result = check_policy(sender, recipient)
-                self.wfile.write((result + '\n\n').encode())
-                attrs = {}
-                continue
-            if not line:
+            raw = self.rfile.readline()
+            if not raw:                            # EOF reseau
                 break
+            line = raw.decode('utf-8', errors='replace').rstrip('\r\n')
+            if line == '':                         # fin de requete Postfix
+                if attrs:
+                    sender = attrs.get('sender', '')
+                    recipient = attrs.get('recipient', '')
+                    result = check_policy(sender, recipient)
+                    self.wfile.write((result + '\n\n').encode())
+                    self.wfile.flush()
+                    attrs = {}
+                continue
             if '=' in line:
                 k, v = line.split('=', 1)
                 attrs[k] = v

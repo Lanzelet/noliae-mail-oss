@@ -13,7 +13,9 @@ services:
   # 1. WEBMAIL (Laravel/Vue)
   ##########################
   web:
-    build: ./docker/web
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
     image: ghcr.io/noliae/noliae-mail-oss-web:latest
     restart: unless-stopped
     depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_started } }
@@ -111,7 +113,7 @@ services:
     image: minio/mc:latest
     depends_on: [minio]
     entrypoint: >
-      sh -c "until mc alias set m http://minio:9000 ${MINIO_ROOT_USER:-noliae} ${MINIO_ROOT_PASSWORD}; do sleep 1; done;
+      sh -c "until mc alias set m http://minio:9000 \"${MINIO_ROOT_USER:-noliae}\" \"${MINIO_ROOT_PASSWORD}\"; do sleep 1; done;
              mc mb --ignore-existing m/attachments &&
              mc anonymous set none m/attachments"
     networks: [intnet]

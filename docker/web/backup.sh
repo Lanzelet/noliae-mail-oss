@@ -47,7 +47,9 @@ echo "[backup] $(date -Iseconds) Starting backup → $BACKUP_DIR/$STAMP.tar.gz"
 # 1. Postgres dump
 PG=$(docker ps -q -f name=postgres)
 [ -z "$PG" ] && { echo "Postgres container introuvable"; exit 1; }
-docker exec "$PG" pg_dump -U noliae noliae_mail > "$TMP/postgres.sql"
+: "${DB_USER:=noliae}"
+: "${DB_NAME:=noliaemail}"
+docker exec "$PG" pg_dump -U "$DB_USER" "$DB_NAME" > "$TMP/postgres.sql"
 
 # 2. Maildirs (volume vmail)
 DOVECOT=$(docker ps -q -f name=dovecot)

@@ -576,8 +576,12 @@ HTML;
     public function pgpForget(Request $request, KeyStoreService $store)
     {
         $email = (string) $request->session()->get('mail_user');
-        $data = $request->validate(['email' => 'required|email']);
-        $store->delete($email, $data['email']);
+        // DELETE peut transporter le payload via body JSON ou query string.
+        $target = (string) ($request->input('email') ?? $request->query('email', ''));
+        if (! filter_var($target, FILTER_VALIDATE_EMAIL)) {
+            return response()->json(['error' => 'email invalide'], 422);
+        }
+        $store->delete($email, strtolower($target));
         return response()->json(['ok' => true]);
     }
 
@@ -626,9 +630,14 @@ HTML;
         if (! preg_match('/^[a-f0-9]{64}$/', $hash)) {
             abort(404);
         }
-        // Scan local des fichiers settings (petit nombre d'utilisateurs)
-        $dir = storage_path('app/webmail-settings');
-        if (! is_dir($dir)) abort(404);
+        // Scan local des fichiers settings (petit nombre d'utilisateurs).
+        // Laravel 12+ : Storage::disk('local') a sa racine sur storage/app/private/
+        $dir = storage_path('app/private/webmail-settings');
+        if (! is_dir($dir)) {
+            // Fallback ancien chemin (compat retro)
+            $dir = storage_path('app/webmail-settings');
+            if (! is_dir($dir)) abort(404);
+        }
         foreach (scandir($dir) as $f) {
             if (! str_ends_with($f, '.json')) continue;
             try {
@@ -847,7 +856,8 @@ HTML;
 
         // Si la requête arrive depuis une boîte partagée (?as=ID), on envoie
         // au nom de cette boîte (sous réserve d'ACL valide).
-        $asSharedId = (int) $request->query('as', 0);
+        // Accepte ?as=ID (GET) ou as= dans le body (POST JSON / form).
+        $asSharedId = (int) ($request->input('as') ?? $request->query('as', 0));
         if ($asSharedId) {
             $shared = \Illuminate\Support\Facades\DB::table('shared_mailbox_acls')
                 ->join('shared_mailboxes', 'shared_mailboxes.id', '=', 'shared_mailbox_acls.shared_mailbox_id')
@@ -968,13 +978,11 @@ HTML;
             // Si l'envoi vient d'un brouillon, on le retire de Brouillons.
             if (! empty($data['draft_uid'])) {
                 try {
-                    $client = null;
-                    // Trouver le dossier Drafts et supprimer le message
-                    $box = null;
+                    $draftPath = null;
                     foreach ($this->mail->folders($email) as $f) {
                         if (($f['rank'] ?? 99) === 1) { $draftPath = $f['path']; break; }
                     }
-                    if (! empty($draftPath)) {
+                    if ($draftPath) {
                         $this->mail->deleteMessage($email, $draftPath, (int) $data['draft_uid']);
                     }
                 } catch (\Throwable $e) {}

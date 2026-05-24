@@ -437,7 +437,9 @@ class MailboxService
                 try { $q = $box->query()->where('TEXT', $search); } catch (\Throwable $e2) {}
             }
         } else {
-            $q = $q->all();
+            // webklex/php-imap : query() vide = ALL côté serveur ; on ne
+            // chaîne pas ->all() car selon la version cela renvoie void.
+            try { $q = $q->all(); } catch (\Throwable $e) { $q = $box->query(); }
         }
         $messages = $q->limit($limit)->setFetchOrder('desc')->setFetchBody(false)->get();
 

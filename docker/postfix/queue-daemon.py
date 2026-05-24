@@ -109,8 +109,12 @@ if __name__ == '__main__':
     if not TOKEN:
         sys.stderr.write('FATAL: QUEUE_TOKEN env required\n')
         sys.exit(1)
-    server = TServer(('0.0.0.0', PORT), Handler)
-    sys.stderr.write(f'[queue-daemon] listening on :{PORT}\n')
+    # BIND_ADDR defaut 127.0.0.1 ; passer a 172.18.0.1 (bridge docker) UNIQUEMENT
+    # via env BIND_ADDR si le web container est dans un autre namespace réseau.
+    # Ne JAMAIS exposer publiquement (le token n'est qu'un garde-fou secondaire).
+    bind_addr = os.environ.get('BIND_ADDR', '127.0.0.1')
+    server = TServer((bind_addr, PORT), Handler)
+    sys.stderr.write(f'[queue-daemon] listening on {bind_addr}:{PORT}\n')
     try:
         server.serve_forever()
     except KeyboardInterrupt:

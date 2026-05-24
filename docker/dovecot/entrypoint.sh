@@ -27,4 +27,15 @@ done
 mkdir -p /var/vmail
 chown vmail:vmail /var/vmail
 
+# Génère un cert TLS auto-signé si aucun n'existe (IMAPS 993)
+# En prod, monte /etc/letsencrypt et symlink les chemins vers les vrais certs.
+if [ ! -f /etc/dovecot/tls/cert.pem ]; then
+  mkdir -p /etc/dovecot/tls
+  openssl req -new -x509 -nodes -days 365 \
+    -subj "/CN=${MAIL_DOMAIN:-localhost}" \
+    -keyout /etc/dovecot/tls/key.pem \
+    -out /etc/dovecot/tls/cert.pem 2>/dev/null
+  chmod 600 /etc/dovecot/tls/key.pem
+fi
+
 exec "$@"
