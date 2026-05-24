@@ -5,7 +5,7 @@
                     'w-64 flex flex-col h-screen', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0']">
       <div class="px-5 py-4 border-b border-gray-100 dark:border-zinc-800">
         <Link href="/admin" class="flex items-center gap-2 group">
-          <svg viewBox="0 0 140 100" class="h-6"><rect x="12" y="35" width="10" height="30" rx="5" fill="currentColor"/><rect x="30" y="25" width="10" height="50" rx="5" fill="currentColor"/><rect x="48" y="15" width="10" height="70" rx="5" fill="currentColor"/><rect x="66" y="22" width="10" height="56" rx="5" fill="#FF4D2E"/><rect x="84" y="20" width="10" height="60" rx="5" fill="currentColor"/><rect x="102" y="30" width="10" height="40" rx="5" fill="currentColor"/><rect x="120" y="35" width="10" height="30" rx="5" fill="currentColor"/></svg>
+          <AnimatedLogo color="currentColor" accent="#FF4D2E" class="h-6 w-auto"/>
           <div>
             <div class="font-bold text-sm leading-none">Noliae Mail</div>
             <div class="text-[10px] uppercase tracking-wider text-[#FF4D2E] font-bold mt-0.5">Admin Center</div>
@@ -80,6 +80,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
+import AnimatedLogo from '../../Components/AnimatedLogo.vue';
 defineProps({ title: String, admin_email: String, app_domain: String });
 const page = computed(() => usePage());
 const sidebarOpen = ref(false);

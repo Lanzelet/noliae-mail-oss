@@ -105,12 +105,21 @@
         <Link href="/admin/domains" class="text-xs text-[#FF4D2E] hover:underline">Gérer →</Link>
       </div>
       <div class="space-y-1.5">
-        <div v-for="d in domains" :key="d.id" class="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-zinc-900">
-          <code class="text-sm font-mono">{{ d.name }}</code>
-          <span :class="['text-[10px] uppercase font-bold px-1.5 py-0.5 rounded',
-            d.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600']">
-            {{ d.active ? 'actif' : 'suspendu' }}
-          </span>
+        <div v-for="d in domains" :key="d.id" class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-zinc-900">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <code class="text-sm font-mono truncate">{{ d.name }}</code>
+            <span v-if="d.is_primary" class="text-[10px] uppercase font-bold bg-[#FF4D2E]/15 text-[#FF4D2E] px-1.5 py-0.5 rounded">⭐ primaire</span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button v-if="!d.is_primary && role === 'owner'" @click="setPrimary(d)"
+              class="text-[11px] text-[#FF4D2E] hover:underline" title="Affiché par défaut sur /login">
+              Définir primaire
+            </button>
+            <span :class="['text-[10px] uppercase font-bold px-1.5 py-0.5 rounded',
+              d.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600']">
+              {{ d.active ? 'actif' : 'suspendu' }}
+            </span>
+          </div>
         </div>
         <p v-if="!domains.length" class="text-xs text-gray-400 text-center py-3">Aucun domaine.</p>
       </div>
@@ -144,5 +153,8 @@ function uploadLogo(e) {
 }
 function deleteLogo() {
   if (confirm('Retirer le logo de l\'organisation ?')) router.delete('/org/logo', { preserveScroll: true });
+}
+function setPrimary(d) {
+  router.patch(`/admin/domains/${d.id}/primary`, {}, { preserveScroll: true });
 }
 </script>

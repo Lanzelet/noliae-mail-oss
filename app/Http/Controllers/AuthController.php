@@ -42,11 +42,18 @@ class AuthController extends Controller
     private function loginBranding(): array
     {
         $org = \Illuminate\Support\Facades\DB::table('organizations')->first(['id', 'name', 'logo_path']);
+        // Domaine primaire : 1er marqué is_primary, sinon fallback config.
+        $primaryDomain = \Illuminate\Support\Facades\DB::table('mail_domains')
+            ->where('active', true)
+            ->orderByDesc('is_primary')
+            ->orderBy('id')
+            ->value('name') ?: config('mail.primary_domain');
         return [
             'org_name'           => $org?->name,
             'org_logo_url'       => $org && $org->logo_path
                 ? '/org/logo?v=' . substr(md5((string) $org->logo_path), 0, 8)
                 : null,
+            'primary_domain'     => $primaryDomain,
             'footer_label'       => (string) AppSettings::get('login_footer_label', 'github.com/Noliae/noliae-mail-oss'),
             'footer_url'         => (string) AppSettings::get('login_footer_url', 'https://github.com/Noliae/noliae-mail-oss'),
             'footer_tagline'     => (string) AppSettings::get('login_footer_tagline', 'Messagerie souveraine, open source'),

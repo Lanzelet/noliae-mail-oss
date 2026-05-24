@@ -14,10 +14,14 @@
         </thead>
         <tbody>
           <tr v-for="d in domains" :key="d.id" class="border-t border-gray-100 dark:border-zinc-700">
-            <td class="px-4 py-2.5 font-mono">{{ d.name }}</td>
+            <td class="px-4 py-2.5 font-mono">
+              {{ d.name }}
+              <span v-if="d.is_primary" class="ml-2 text-[10px] uppercase font-bold bg-[#FF4D2E]/15 text-[#FF4D2E] px-1.5 py-0.5 rounded">primaire</span>
+            </td>
             <td class="px-4 py-2.5">{{ d.accounts_count }}</td>
             <td class="px-4 py-2.5"><span :class="d.active ? 'text-emerald-600' : 'text-gray-400'">● {{ d.active ? 'actif' : 'désactivé' }}</span></td>
             <td class="px-4 py-2.5 text-right">
+              <button v-if="!d.is_primary" @click="setPrimary(d)" class="text-xs text-[#FF4D2E] hover:underline mr-3" title="Domaine affiché par défaut sur /login">⭐ Définir primaire</button>
               <Link :href="`/admin/domains/${d.id}/dns`" class="text-xs text-gray-600 hover:text-[#FF4D2E] mr-3">📋 Records DNS</Link>
               <button @click="del(d)" class="text-xs text-rose-600 hover:underline">Supprimer</button>
             </td>
@@ -37,4 +41,5 @@ const form = reactive({ name: '' });
 const errors = computed(() => usePage().props.errors || {});
 function add() { router.post('/admin/domains', form, { preserveScroll: true, onSuccess: () => form.name = '' }); }
 function del(d) { if (confirm(`Supprimer ${d.name} ?`)) router.delete(`/admin/domains/${d.id}`, { preserveScroll: true }); }
+function setPrimary(d) { router.patch(`/admin/domains/${d.id}/primary`, {}, { preserveScroll: true }); }
 </script>

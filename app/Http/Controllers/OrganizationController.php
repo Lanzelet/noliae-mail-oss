@@ -33,7 +33,9 @@ class OrganizationController extends Controller
         $ctx = $this->ctx($request);
         $domains = DB::table('mail_domains')
             ->where('organization_id', $ctx['org']->id)
-            ->orderBy('name')->get(['id', 'name', 'active'])->toArray();
+            ->orderByDesc('is_primary')
+            ->orderBy('name')
+            ->get(['id', 'name', 'active', 'is_primary'])->toArray();
         $stats = [
             'members'  => DB::table('organization_members')->where('organization_id', $ctx['org']->id)->count(),
             'domains'  => count($domains),

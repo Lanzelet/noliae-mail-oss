@@ -124,6 +124,8 @@ Route::middleware([\App\Http\Middleware\EnsureMailbox::class, 'admin', 'force.2f
     Route::get('/accounts',                 [AdminController::class, 'accounts']);
     Route::post('/accounts',                [AdminController::class, 'createAccount']);
     Route::patch('/accounts/{id}/toggle',   [AdminController::class, 'toggleAccount'])->whereNumber('id');
+    Route::patch('/accounts/{id}',          [AdminController::class, 'updateAccount'])->whereNumber('id');
+    Route::patch('/domains/{id}/primary',   [AdminController::class, 'setPrimaryDomain'])->whereNumber('id');
     Route::patch('/accounts/{id}/password', [AdminController::class, 'resetPassword'])->whereNumber('id');
     Route::patch('/accounts/{id}/quota',    [AdminController::class, 'updateQuota'])->whereNumber('id');
     Route::delete('/accounts/{id}',         [AdminController::class, 'deleteAccount'])->whereNumber('id');

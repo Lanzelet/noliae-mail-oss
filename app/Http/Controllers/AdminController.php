@@ -59,7 +59,11 @@ class AdminController extends Controller
         $domains = DB::table('mail_domains')
             ->leftJoin('mail_accounts', 'mail_accounts.domain_id', '=', 'mail_domains.id')
             ->selectRaw('mail_domains.*, COUNT(mail_accounts.id) as accounts_count')
-            ->groupBy('mail_domains.id','mail_domains.name','mail_domains.active','mail_domains.created_at','mail_domains.updated_at')
+            ->groupBy(
+                'mail_domains.id','mail_domains.name','mail_domains.active','mail_domains.is_primary',
+                'mail_domains.organization_id','mail_domains.created_at','mail_domains.updated_at'
+            )
+            ->orderByDesc('mail_domains.is_primary')
             ->orderBy('mail_domains.name')->get()->toArray();
         return Inertia::render('Admin/Domains', ['domains' => $domains]);
     }
@@ -107,12 +111,24 @@ class AdminController extends Controller
         $this->authorize_admin($request);
         $accounts = DB::table('mail_accounts')
             ->join('mail_domains','mail_domains.id','=','mail_accounts.domain_id')
-            ->select('mail_accounts.id','mail_accounts.email','mail_accounts.display_name',
-                     'mail_accounts.active','mail_accounts.quota_bytes','mail_accounts.created_at',
-                     'mail_domains.name as domain_name')
-            ->orderBy('mail_accounts.email')->get()->toArray();
+            ->select(
+                'mail_accounts.id','mail_accounts.email','mail_accounts.display_name',
+                'mail_accounts.first_name','mail_accounts.last_name',
+                'mail_accounts.phone','mail_accounts.mobile',
+                'mail_accounts.job_title','mail_accounts.company',
+                'mail_accounts.active','mail_accounts.quota_bytes','mail_accounts.domain_id',
+                'mail_accounts.created_at',
+                'mail_domains.name as domain_name'
+            )
+            ->orderBy('mail_accounts.email')->get()
+            ->map(function ($a) {
+                $a->local = explode('@', $a->email, 2)[0] ?? '';
+                $a->quota_mb = intdiv((int) $a->quota_bytes, 1024 * 1024);
+                return $a;
+            })->toArray();
         $domains = DB::table('mail_domains')->where('active', true)
-            ->orderBy('name')->get(['id','name'])->toArray();
+            ->orderByDesc('is_primary')->orderBy('name')
+            ->get(['id','name','is_primary'])->toArray();
         return Inertia::render('Admin/Accounts', [
             'accounts' => $accounts,
             'domains'  => $domains,
@@ -166,6 +182,111 @@ class AdminController extends Controller
         ]);
         AuditLog::record($request, $row->active ? 'account.suspend' : 'account.activate', $row->email);
         return back()->with('success', $row->active ? 'Compte suspendu.' : 'Compte réactivé.');
+    }
+
+    /**
+     * PATCH /admin/accounts/{id} — édition complète d'un compte :
+     * email (local + domain), display_name, profil étendu, quota.
+     *
+     * Change l'email = renomme le maildir Dovecot. On utilise une
+     * transaction pour éviter un état incohérent.
+     */
+    public function updateAccount(Request $request, int $id)
+    {
+        $this->authorize_admin($request);
+        $row = DB::table('mail_accounts')->where('id', $id)->first();
+        abort_unless($row, 404);
+
+        $max = AppSettings::int('max_quota_mb', 51200);
+        $data = $request->validate([
+            'local'        => 'required|string|max:64|regex:/^[a-z0-9][a-z0-9._-]{1,63}$/i',
+            'domain_id'    => 'required|integer|exists:mail_domains,id',
+            'display_name' => 'nullable|string|max:120',
+            'first_name'   => 'nullable|string|max:80',
+            'last_name'    => 'nullable|string|max:80',
+            'phone'        => 'nullable|string|max:32',
+            'mobile'       => 'nullable|string|max:32',
+            'job_title'    => 'nullable|string|max:120',
+            'company'      => 'nullable|string|max:120',
+            'quota_mb'     => "required|integer|min:10|max:$max",
+        ]);
+
+        $newDomain = DB::table('mail_domains')->where('id', $data['domain_id'])->first();
+        abort_unless($newDomain, 404, 'Domaine introuvable');
+        $newEmail = strtolower($data['local']) . '@' . $newDomain->name;
+
+        // Anti-lockout : on n'autorise pas à modifier l'email de l'admin courant
+        // (sinon il perd l'accès à son propre admin).
+        $meEmail = strtolower((string) $request->session()->get('mail_user', ''));
+        if (strtolower($row->email) === $meEmail && $newEmail !== strtolower($row->email)) {
+            return back()->withErrors(['local' => 'Tu ne peux pas changer ton propre email depuis l\'admin (déconnexion garantie). Utilise un autre compte owner.']);
+        }
+        if ($newEmail !== strtolower($row->email)
+            && DB::table('mail_accounts')->where('email', $newEmail)->exists()) {
+            return back()->withErrors(['local' => 'Un compte existe déjà avec cet email.']);
+        }
+
+        $newMaildir = $newDomain->name . '/' . strtolower($data['local']) . '/';
+
+        DB::transaction(function () use ($id, $newEmail, $data, $newMaildir, $row) {
+            DB::table('mail_accounts')->where('id', $id)->update([
+                'email'        => $newEmail,
+                'domain_id'    => $data['domain_id'],
+                'display_name' => $data['display_name'] ?? null,
+                'first_name'   => $data['first_name'] ?? null,
+                'last_name'    => $data['last_name'] ?? null,
+                'phone'        => $data['phone'] ?? null,
+                'mobile'       => $data['mobile'] ?? null,
+                'job_title'    => $data['job_title'] ?? null,
+                'company'      => $data['company'] ?? null,
+                'quota_bytes'  => (int) $data['quota_mb'] * 1024 * 1024,
+                'maildir'      => $newMaildir,
+                'updated_at'   => now(),
+            ]);
+            // Si l'email change, l'organisation_contacts membre est resynchro
+            // au prochain load /contacts (la sync supprime les rows orphelines).
+        });
+
+        // Renommage physique du maildir si le chemin a bougé. Best-effort :
+        // si on n'a pas accès au volume vmail depuis le container web,
+        // un admin devra faire `doveadm mailbox rename` côté Dovecot.
+        if ($row->maildir && $row->maildir !== $newMaildir) {
+            $oldPath = '/var/vmail/' . ltrim($row->maildir, '/');
+            $newPath = '/var/vmail/' . ltrim($newMaildir, '/');
+            if (is_dir($oldPath) && ! is_dir($newPath)) {
+                @mkdir(dirname($newPath), 0700, true);
+                @rename($oldPath, $newPath);
+            }
+        }
+
+        AuditLog::record($request, 'account.update', $row->email, [
+            'new_email' => $newEmail,
+            'old_quota_mb' => intdiv((int) $row->quota_bytes, 1024 * 1024),
+            'new_quota_mb' => $data['quota_mb'],
+        ]);
+        return back()->with('success', "Compte mis à jour : $newEmail");
+    }
+
+    /**
+     * PATCH /admin/domains/{id}/primary — marque ce domaine comme primaire
+     * pour l'organisation. Tous les autres deviennent secondaires.
+     */
+    public function setPrimaryDomain(Request $request, int $id)
+    {
+        $this->authorize_admin($request);
+        $dom = DB::table('mail_domains')->where('id', $id)->first();
+        abort_unless($dom, 404);
+
+        DB::transaction(function () use ($dom) {
+            DB::table('mail_domains')
+                ->where('organization_id', $dom->organization_id)
+                ->update(['is_primary' => false, 'updated_at' => now()]);
+            DB::table('mail_domains')->where('id', $dom->id)
+                ->update(['is_primary' => true, 'updated_at' => now()]);
+        });
+
+        AuditLog::record($request, 'domain.set_primary', $dom->name);
+        return back()->with('success', "Domaine primaire : {$dom->name}");
     }
 
     /** PATCH /admin/accounts/{id}/quota — modifie le quota d'un compte. */
