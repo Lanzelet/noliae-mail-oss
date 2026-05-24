@@ -67,11 +67,22 @@ docker compose up -d
 ```
 
 Le script `install.sh` te demande ton domaine et génère :
-- Un `.env` complet avec secrets aléatoires forts
-- Une paire de clés DKIM (RSA 2048)
+- Un `.env` complet avec secrets aléatoires forts (APP_KEY, DB_PASSWORD, MAIL_MASTER_PASS, MINIO_ROOT_PASSWORD, POSTFIX_QUEUE_TOKEN, RSPAMD_PASSWORD)
+- L'`ADMIN_EMAIL` + `ADMIN_PASSWORD` (le compte est créé automatiquement par `php artisan mail:install` au premier boot du container web)
+- Une paire de clés DKIM RSA 2048 générée par `opendkim-genkey` au premier démarrage du container Postfix (persistée dans le volume `postfix-dkim`)
 - Un fichier `DNS-RECORDS.txt` avec tous les enregistrements à publier chez ton registrar (A, MX, SPF, DKIM, DMARC, MTA-STS, TLS-RPT, **+ A pour `s3.<domain>`** pour les pièces jointes)
 
-Une fois les DNS publiés et propagés, le premier admin est créé via `/register` (premier email auto-promu admin). Ensuite le webmail tourne sur `https://${MAIL_DOMAIN}`, l'admin sur `/admin`.
+Après `docker compose up -d`, l'admin est prêt — connecte-toi sur `https://${MAIL_DOMAIN}/login` avec `ADMIN_EMAIL` + `ADMIN_PASSWORD`. Le webmail tourne sur `/webmail`, l'espace user sur `/account`, l'admin sur `/admin`.
+
+### Récupérer le DKIM TXT à publier en DNS
+
+La clé est générée auto au premier boot, lis-la avec :
+
+```bash
+docker compose exec postfix cat /etc/opendkim/keys/${MAIL_DOMAIN}/mail.txt
+```
+
+Ou ouvre `/admin/domains/{id}/dns` dans l'admin panel — le record TXT y est affiché formaté.
 
 ### Migration depuis un autre serveur
 
