@@ -273,7 +273,14 @@
           </template>
           <template v-else>
             <h2 class="text-sm font-black text-gray-900">{{ meta(currentFolderName).label }}</h2>
-            <span class="ml-1 text-xs text-gray-400 tabular-nums">{{ messages.length }}{{ total > messages.length ? ' / ' + total : '' }}</span>
+            <span class="ml-1 text-xs text-gray-400 tabular-nums">{{ pageRangeLabel }}</span>
+            <!-- Pagination prev/next -->
+            <div class="ml-2 flex items-center gap-0.5">
+              <button @click="gotoPage(page - 1)" :disabled="page <= 1"
+                class="w-6 h-6 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 text-sm leading-none flex items-center justify-center" title="Page précédente">‹</button>
+              <button @click="gotoPage(page + 1)" :disabled="page >= totalPages"
+                class="w-6 h-6 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 text-sm leading-none flex items-center justify-center" title="Page suivante">›</button>
+            </div>
             <span class="ml-auto flex items-center gap-1.5 text-[11px] font-medium"
                   :class="polling ? 'text-emerald-600' : 'text-gray-400'">
               <span class="w-2 h-2 rounded-full"
@@ -1491,6 +1498,8 @@ const props = defineProps({
   quota: { type: Object, default: null },
   settings: { type: Object, default: () => ({ signature_html: '', ask_receipts: false }) },
   total: { type: Number, default: 0 },
+  page: { type: Number, default: 1 },
+  per_page: { type: Number, default: 50 },
   search: { type: String, default: '' },
   error: String,
   enable_noliae_ai: { type: Boolean, default: false },
@@ -3022,6 +3031,25 @@ watch(searchInput, (v) => {
 function openFolder(path) {
   moveOpen.value = false; drawerOpen.value = false;
   router.get('/webmail', { folder: path }, { preserveState: false });
+}
+// ── Pagination ──
+const totalPages = computed(() => Math.max(1, Math.ceil((props.total || 0) / (props.per_page || 50))));
+const pageRangeLabel = computed(() => {
+  const t = props.total || 0;
+  if (!t) return '';
+  const start = (props.page - 1) * props.per_page + 1;
+  const end = Math.min(t, start + props.messages.length - 1);
+  return `${start}–${end} sur ${t}`;
+});
+function gotoPage(p) {
+  const next = Math.min(totalPages.value, Math.max(1, p));
+  if (next === props.page) return;
+  router.get('/webmail', {
+    folder: props.folder,
+    q: props.search || undefined,
+    page: next,
+    per_page: props.per_page !== 50 ? props.per_page : undefined,
+  }, { preserveState: false, preserveScroll: false });
 }
 function openMessage(uid) {
   moveOpen.value = false; drawerOpen.value = false;

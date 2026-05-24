@@ -407,7 +407,7 @@ class MailboxService
      * @param  string  $search  termes IMAP TEXT (vide = tout)
      * @return array {messages: [], total: int}
      */
-    public function messages(string $email, string $folder, int $limit = 40, string $search = ''): array
+    public function messages(string $email, string $folder, int $limit = 50, string $search = '', int $page = 1): array
     {
         $client = $this->client($email);
         $box = $client->getFolder($folder);
@@ -441,7 +441,10 @@ class MailboxService
             // chaîne pas ->all() car selon la version cela renvoie void.
             try { $q = $q->all(); } catch (\Throwable $e) { $q = $box->query(); }
         }
-        $messages = $q->limit($limit)->setFetchOrder('desc')->setFetchBody(false)->get();
+        // Pagination : webklex/php-imap supporte limit($per_page, $page) en 2 args.
+        $page = max(1, $page);
+        $limit = max(1, min(200, $limit));
+        $messages = $q->limit($limit, $page)->setFetchOrder('desc')->setFetchBody(false)->get();
 
         $out = [];
         foreach ($messages as $m) {

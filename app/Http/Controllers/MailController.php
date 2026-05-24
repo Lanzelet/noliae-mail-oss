@@ -41,9 +41,11 @@ class MailController extends Controller
             if ($activeShared) $email = $activeShared->email;
         }
 
-        $folder = (string) ($request->query('folder') ?: 'INBOX');
-        $uid    = $request->query('uid');
-        $search = trim((string) $request->query('q', ''));
+        $folder   = (string) ($request->query('folder') ?: 'INBOX');
+        $uid      = $request->query('uid');
+        $search   = trim((string) $request->query('q', ''));
+        $page     = max(1, (int) $request->query('page', 1));
+        $perPage  = max(20, min(200, (int) $request->query('per_page', 50)));
 
         $error = null;
         $folders = [];
@@ -54,7 +56,7 @@ class MailController extends Controller
 
         try {
             $folders  = $this->mail->folders($email);
-            $res = $this->mail->messages($email, $folder, 40, $search);
+            $res = $this->mail->messages($email, $folder, $perPage, $search, $page);
             $messages = $res['messages'];
             $total = $res['total'];
 
@@ -84,6 +86,8 @@ class MailController extends Controller
             'folder'   => $folder,
             'messages' => $messages,
             'total'    => $total,
+            'page'     => $page,
+            'per_page' => $perPage,
             'search'   => $search,
             'selected' => $selected,
             'quota'    => $quota,
