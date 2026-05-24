@@ -37,6 +37,25 @@ done
 docker compose version >/dev/null 2>&1 || { c_red "✗ docker compose v2 requis.\n"; exit 1; }
 c_green "  ✓ docker compose v2\n"
 
+# ── Compat API Docker (>= 28 rejette les vieux clients par défaut) ──
+# Le SDK Docker embarqué dans Traefik négocie en API 1.24 au premier /info,
+# que les démons Docker récents refusent. On force DOCKER_MIN_API_VERSION=1.24
+# côté démon via un drop-in systemd. Idempotent.
+DOCKER_MAJOR=$(docker version --format '{{.Server.Version}}' 2>/dev/null | cut -d. -f1)
+if [ -n "$DOCKER_MAJOR" ] && [ "$DOCKER_MAJOR" -ge 28 ] 2>/dev/null; then
+  DROPIN=/etc/systemd/system/docker.service.d/api-version.conf
+  if [ ! -f "$DROPIN" ] || ! grep -q 'DOCKER_MIN_API_VERSION=1.24' "$DROPIN" 2>/dev/null; then
+    c_yellow "  ⚠ Docker ${DOCKER_MAJOR}.x détecté : configuration DOCKER_MIN_API_VERSION=1.24\n"
+    sudo mkdir -p /etc/systemd/system/docker.service.d
+    echo -e '[Service]\nEnvironment="DOCKER_MIN_API_VERSION=1.24"' | sudo tee "$DROPIN" >/dev/null
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+    c_green "  ✓ Démon Docker reconfiguré (compat API 1.24)\n"
+  else
+    c_green "  ✓ DOCKER_MIN_API_VERSION=1.24 déjà configuré\n"
+  fi
+fi
+
 # Vérifie qu'on est dans le repo
 [ -f docker-compose.yml ] && [ -f .env.example ] || {
   c_red "✗ Lance ce script depuis la racine du repo noliae-mail-oss.\n"; exit 1; }

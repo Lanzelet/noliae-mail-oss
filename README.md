@@ -99,6 +99,13 @@ Pre-check avant `verifyPassword`, reset auto sur login OK, hit window 15 min, me
 
 **Prérequis :** un serveur Linux avec Docker (Compose v2), un domaine que tu contrôles, les ports `25/80/143/443/465/587/993` ouverts au public. Idéalement avec un rDNS configuré.
 
+> **Docker ≥ 28** : le démon rejette les vieux clients API par défaut, ce qui empêche Traefik de fonctionner. `install.sh` ajoute automatiquement `DOCKER_MIN_API_VERSION=1.24` au service `docker.service` (drop-in systemd). Si tu déploies manuellement sans `install.sh` :
+> ```bash
+> sudo mkdir -p /etc/systemd/system/docker.service.d
+> echo -e '[Service]\nEnvironment="DOCKER_MIN_API_VERSION=1.24"' | sudo tee /etc/systemd/system/docker.service.d/api-version.conf
+> sudo systemctl daemon-reload && sudo systemctl restart docker
+> ```
+
 ```bash
 git clone https://github.com/Noliae/noliae-mail-oss.git
 cd noliae-mail-oss
