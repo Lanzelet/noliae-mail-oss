@@ -38,7 +38,118 @@ class AccountController extends Controller
             'totp_enabled' => (bool) $acc->totp_enabled,
             'tokens'       => $tokens,
             'mail_domain'  => config('mail.primary_domain'),
+            'avatar_hash'  => md5(strtolower($acc->email)),
+            'avatar_url'   => $acc->avatar_path
+                ? '/webmail/avatar/' . md5(strtolower($acc->email)) . '?v=' . substr(md5((string) $acc->avatar_path), 0, 8)
+                : null,
         ]);
+    }
+
+    /* ──────── Avatar ──────── */
+
+    public function uploadAvatar(Request $request)
+    {
+        $acc = $this->account($request);
+        $request->validate([
+            'avatar' => 'required|file|image|mimes:jpeg,png,webp,gif|max:2048',
+        ]);
+        $file = $request->file('avatar');
+        $ext  = strtolower($file->getClientOriginalExtension() ?: 'png');
+        $dir  = storage_path('app/private/avatars');
+        if (! is_dir($dir)) @mkdir($dir, 0750, true);
+        $hash = md5(strtolower($acc->email));
+        // On garde un seul fichier par user (efface l'ancien si extension différente).
+        foreach (glob($dir . '/' . $hash . '.*') ?: [] as $old) { @unlink($old); }
+        $rel = 'avatars/' . $hash . '.' . $ext;
+        $file->move($dir, $hash . '.' . $ext);
+        DB::table('mail_accounts')->where('id', $acc->id)->update([
+            'avatar_path' => $rel,
+            'updated_at'  => now(),
+        ]);
+        return back()->with('success', 'Avatar mis à jour.');
+    }
+
+    public function deleteAvatar(Request $request)
+    {
+        $acc = $this->account($request);
+        if ($acc->avatar_path) {
+            @unlink(storage_path('app/private/' . $acc->avatar_path));
+        }
+        DB::table('mail_accounts')->where('id', $acc->id)->update([
+            'avatar_path' => null,
+            'updated_at'  => now(),
+        ]);
+        return back()->with('success', 'Avatar supprimé.');
+    }
+
+    /**
+     * GET /webmail/avatar/{hash}
+     *
+     * Public, cacheable. Renvoie l'image stockée si le hash correspond à un
+     * compte qui a uploadé un avatar — sinon génère un SVG d'initiales coloré
+     * déterministe (basé sur le hash + ?n=nom).
+     */
+    public function serveAvatar(Request $request, string $hash)
+    {
+        $hash = strtolower(preg_replace('/[^a-f0-9]/', '', $hash));
+        if (strlen($hash) === 32) {
+            $row = DB::table('mail_accounts')
+                ->whereRaw('md5(lower(email)) = ?', [$hash])
+                ->whereNotNull('avatar_path')
+                ->select('avatar_path')
+                ->first();
+            if ($row) {
+                $path = storage_path('app/private/' . $row->avatar_path);
+                if (is_readable($path)) {
+                    $mime = match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+                        'jpg', 'jpeg' => 'image/jpeg',
+                        'png'         => 'image/png',
+                        'webp'        => 'image/webp',
+                        'gif'         => 'image/gif',
+                        default       => 'application/octet-stream',
+                    };
+                    return response()->file($path, [
+                        'Content-Type'  => $mime,
+                        'Cache-Control' => 'public, max-age=86400',
+                    ]);
+                }
+            }
+        }
+        // Fallback : SVG initiales (Gravatar-like).
+        $name = (string) $request->query('n', '');
+        $svg  = $this->initialsSvg($name ?: '?', $hash);
+        return response($svg, 200, [
+            'Content-Type'  => 'image/svg+xml',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
+    private function initialsSvg(string $name, string $seed): string
+    {
+        $parts = preg_split('/[\s.@_+-]+/u', trim($name)) ?: [];
+        $parts = array_values(array_filter($parts, fn ($p) => $p !== ''));
+        if (count($parts) >= 2) {
+            $ini = mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[1], 0, 1));
+        } else {
+            $ini = mb_strtoupper(mb_substr($name, 0, 2));
+        }
+        // Couleur déterministe à partir du seed
+        $n = hexdec(substr($seed ?: md5($name), 0, 6));
+        $h = $n % 360;
+        $bg1 = "hsl($h, 70%, 55%)";
+        $bg2 = 'hsl(' . (($h + 40) % 360) . ', 70%, 45%)';
+        $ini = htmlspecialchars($ini, ENT_QUOTES | ENT_XML1, 'UTF-8');
+        return <<<SVG
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="$bg1"/><stop offset="1" stop-color="$bg2"/>
+  </linearGradient></defs>
+  <rect width="64" height="64" rx="32" fill="url(#g)"/>
+  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+        font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif"
+        font-size="26" font-weight="700" fill="#fff">$ini</text>
+</svg>
+SVG;
     }
 
     /* ──────── Mot de passe ──────── */

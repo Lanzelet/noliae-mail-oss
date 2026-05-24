@@ -1651,7 +1651,9 @@ function avatarColor(s) {
   for (let i = 0; i < (s || '').length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return PALETTE[Math.abs(h) % PALETTE.length];
 }
-const ACCOUNT_AVATAR_BASE = 'https://account.noliae.com/avatar/';
+// Avatar self-hosted : sert l'image uploadée par l'user dans /account,
+// sinon génère un SVG d'initiales déterministe (couleur basée sur le hash).
+const ACCOUNT_AVATAR_BASE = '/webmail/avatar/';
 /* Iframe auto-size : suit la hauteur réelle du contenu mail (style Gmail) */
 function autosizeIframe(e) {
   const f = e.target;

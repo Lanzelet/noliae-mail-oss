@@ -26,10 +26,16 @@ Route::post('/register', [AuthController::class, 'register'])->middleware('throt
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/logout', [AuthController::class, 'logoutConfirm']);
 
+// Avatar : public + cacheable (sert l'image ou un SVG d'initiales).
+Route::get('/webmail/avatar/{hash}', [\App\Http\Controllers\AccountController::class, 'serveAvatar'])
+    ->where('hash', '[a-f0-9]{32}');
+
 Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
-    // Espace utilisateur : mot de passe, 2FA, tokens SMTP
+    // Espace utilisateur : mot de passe, 2FA, tokens SMTP, avatar
     Route::get('/account',                     [\App\Http\Controllers\AccountController::class, 'index']);
     Route::post('/account/password',           [\App\Http\Controllers\AccountController::class, 'changePassword']);
+    Route::post('/account/avatar',             [\App\Http\Controllers\AccountController::class, 'uploadAvatar']);
+    Route::delete('/account/avatar',           [\App\Http\Controllers\AccountController::class, 'deleteAvatar']);
     Route::post('/account/2fa/start',          [\App\Http\Controllers\AccountController::class, 'start2fa']);
     Route::post('/account/2fa/confirm',        [\App\Http\Controllers\AccountController::class, 'confirm2fa']);
     Route::post('/account/2fa/disable',        [\App\Http\Controllers\AccountController::class, 'disable2fa']);

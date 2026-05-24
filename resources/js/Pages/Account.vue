@@ -25,14 +25,34 @@
           Profil
         </h2>
         <p class="text-[11px] text-gray-500 mb-3">Tes infos visibles dans les mails envoyés.</p>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-gray-500">Adresse</div>
-            <code class="font-mono">{{ email }}</code>
+        <div class="flex items-start gap-5">
+          <!-- Avatar -->
+          <div class="flex flex-col items-center gap-2">
+            <img :src="avatarSrc" alt="Avatar"
+                 class="w-20 h-20 rounded-full object-cover bg-gray-200 dark:bg-zinc-700 border border-gray-200 dark:border-zinc-700"/>
+            <div class="flex items-center gap-1">
+              <label class="px-2 py-1 text-[11px] font-semibold bg-[#FF4D2E]/10 text-[#FF4D2E] rounded-lg cursor-pointer hover:bg-[#FF4D2E]/20">
+                Changer
+                <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" @change="uploadAvatar"/>
+              </label>
+              <button v-if="avatar_url" @click="deleteAvatar" type="button"
+                      class="px-2 py-1 text-[11px] text-gray-500 hover:text-rose-600">Retirer</button>
+            </div>
+            <p v-if="errors.avatar" class="text-rose-600 text-[10px] text-center max-w-[120px]">{{ errors.avatar }}</p>
           </div>
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-gray-500">Nom affiché</div>
-            <span>{{ display_name || '—' }}</span>
+          <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div>
+              <div class="text-[10px] uppercase tracking-wider text-gray-500">Adresse</div>
+              <code class="font-mono">{{ email }}</code>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-wider text-gray-500">Nom affiché</div>
+              <span>{{ display_name || '—' }}</span>
+            </div>
+            <p class="text-[11px] text-gray-500 md:col-span-2">
+              L'avatar (PNG, JPG, WebP, GIF — max 2 Mo) apparaît dans le webmail et le sélecteur d'identité.
+              Sans avatar uploadé, on génère automatiquement tes initiales sur un fond coloré déterministe.
+            </p>
           </div>
         </div>
       </section>
@@ -169,7 +189,30 @@ import { router, usePage } from '@inertiajs/vue3';
 const props = defineProps({
   email: String, display_name: String, totp_enabled: Boolean,
   tokens: Array, mail_domain: String,
+  avatar_hash: String, avatar_url: String,
 });
+const fileInput = ref(null);
+const avatarSrc = computed(() => {
+  if (props.avatar_url) return props.avatar_url;
+  // Fallback : route SVG initiales (couleur déterministe sur le hash email)
+  const n = encodeURIComponent(props.display_name || props.email || '');
+  return `/webmail/avatar/${props.avatar_hash}?n=${n}`;
+});
+function uploadAvatar(e) {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  const fd = new FormData();
+  fd.append('avatar', f);
+  router.post('/account/avatar', fd, {
+    preserveScroll: true,
+    forceFormData: true,
+    onFinish: () => { if (fileInput.value) fileInput.value.value = ''; },
+  });
+}
+function deleteAvatar() {
+  if (!confirm('Supprimer ton avatar ? On retombera sur tes initiales.')) return;
+  router.delete('/account/avatar', { preserveScroll: true });
+}
 const flash = computed(() => usePage().props.flash);
 const errors = computed(() => usePage().props.errors || {});
 const totp_setup = computed(() => usePage().props.flash?.totp_setup);

@@ -77,7 +77,7 @@ class MailController extends Controller
 
         return Inertia::render('Mailbox', [
             'me'        => $email,
-            'me_hash'   => $email ? hash('sha256', strtolower(trim((string) $email))) : '',
+            'me_hash'   => $email ? md5(strtolower(trim((string) $email))) : '',
             'me_name'   => (string) $request->session()->get('mail_name', ''),
             'settings'  => app(SettingsService::class)->get((string) $email),
             'folders'   => $folders,
