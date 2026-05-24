@@ -1,40 +1,18 @@
 <template>
   <div class="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-zinc-900">
-    <!-- ── Panneau gauche : marque Admin Center (gradient sombre) ── -->
-    <aside class="lg:w-1/3 xl:w-2/5 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 text-white flex items-center justify-center px-8 py-16 relative overflow-hidden">
-      <svg viewBox="0 0 140 100" class="absolute inset-0 m-auto opacity-5 w-3/4 max-w-md">
-        <rect x="12" y="35" width="10" height="30" rx="5" fill="white"/>
-        <rect x="30" y="25" width="10" height="50" rx="5" fill="white"/>
-        <rect x="48" y="15" width="10" height="70" rx="5" fill="white"/>
-        <rect x="66" y="22" width="10" height="56" rx="#FF4D2E"/>
-        <rect x="84" y="20" width="10" height="60" rx="5" fill="white"/>
-        <rect x="102" y="30" width="10" height="40" rx="5" fill="white"/>
-        <rect x="120" y="35" width="10" height="30" rx="5" fill="white"/>
-      </svg>
-      <div class="relative z-10 max-w-sm">
-        <div class="flex items-center gap-3 mb-2">
-          <svg viewBox="0 0 140 100" class="h-12">
-            <rect x="12" y="35" width="10" height="30" rx="5" fill="white"/>
-            <rect x="30" y="25" width="10" height="50" rx="5" fill="white"/>
-            <rect x="48" y="15" width="10" height="70" rx="5" fill="white"/>
-            <rect x="66" y="22" width="10" height="56" rx="5" fill="#FF4D2E"/>
-            <rect x="84" y="20" width="10" height="60" rx="5" fill="white"/>
-            <rect x="102" y="30" width="10" height="40" rx="5" fill="white"/>
-            <rect x="120" y="35" width="10" height="30" rx="5" fill="white"/>
-          </svg>
-        </div>
-        <span class="inline-block text-[10px] uppercase tracking-wider bg-[#FF4D2E] text-white px-2 py-0.5 rounded font-bold">Admin Center</span>
-        <h1 class="text-3xl lg:text-4xl font-black leading-tight mt-3">
-          Centre d'administration
-        </h1>
-        <p class="mt-3 text-white/70 text-sm leading-relaxed">
-          Gestion centralisée de ton organisation Noliae Mail : domaines, comptes,
-          rôles RBAC, anti-spam et sécurité.
-        </p>
-        <div class="mt-8 p-4 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
-          🔒 <strong class="text-white">Accès restreint.</strong> 2FA TOTP obligatoire
-          pour les rôles owner, admin et support.
-        </div>
+    <!-- ── Panneau gauche : logo + badge Admin Center ── -->
+    <aside class="lg:w-1/3 xl:w-2/5 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center relative overflow-hidden min-h-[160px] lg:min-h-screen">
+      <div class="flex flex-col items-center gap-4">
+        <svg viewBox="0 0 140 100" class="w-2/3 max-w-md opacity-90">
+          <rect x="12" y="35" width="10" height="30" rx="5" fill="white"/>
+          <rect x="30" y="25" width="10" height="50" rx="5" fill="white"/>
+          <rect x="48" y="15" width="10" height="70" rx="5" fill="white"/>
+          <rect x="66" y="22" width="10" height="56" rx="5" fill="#FF4D2E"/>
+          <rect x="84" y="20" width="10" height="60" rx="5" fill="white"/>
+          <rect x="102" y="30" width="10" height="40" rx="5" fill="white"/>
+          <rect x="120" y="35" width="10" height="30" rx="5" fill="white"/>
+        </svg>
+        <span class="text-[10px] uppercase tracking-wider bg-[#FF4D2E] text-white px-2.5 py-1 rounded font-bold">Admin Center</span>
       </div>
     </aside>
 

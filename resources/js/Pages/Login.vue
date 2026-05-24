@@ -1,9 +1,8 @@
 <template>
   <div class="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-zinc-900">
-    <!-- ── Panneau de gauche : marque (style OWA splash) ── -->
-    <aside class="lg:w-1/3 xl:w-2/5 bg-gradient-to-br from-[#FF4D2E] to-[#cc3a1f] text-white flex items-center justify-center px-8 py-16 relative overflow-hidden">
-      <!-- Bars decorative en watermark -->
-      <svg viewBox="0 0 140 100" class="absolute inset-0 m-auto opacity-10 w-3/4 max-w-md">
+    <!-- ── Panneau de gauche : juste le logo Noliae en watermark ── -->
+    <aside class="lg:w-1/3 xl:w-2/5 bg-gradient-to-br from-[#FF4D2E] to-[#cc3a1f] flex items-center justify-center relative overflow-hidden min-h-[160px] lg:min-h-screen">
+      <svg viewBox="0 0 140 100" class="w-2/3 max-w-md opacity-90">
         <rect x="12" y="35" width="10" height="30" rx="5" fill="white"/>
         <rect x="30" y="25" width="10" height="50" rx="5" fill="white"/>
         <rect x="48" y="15" width="10" height="70" rx="5" fill="white"/>
@@ -12,26 +11,6 @@
         <rect x="102" y="30" width="10" height="40" rx="5" fill="white"/>
         <rect x="120" y="35" width="10" height="30" rx="5" fill="white"/>
       </svg>
-      <div class="relative z-10 max-w-sm">
-        <svg viewBox="0 0 140 100" class="h-16 mb-6">
-          <rect x="12" y="35" width="10" height="30" rx="5" fill="white"/>
-          <rect x="30" y="25" width="10" height="50" rx="5" fill="white"/>
-          <rect x="48" y="15" width="10" height="70" rx="5" fill="white"/>
-          <rect x="66" y="22" width="10" height="56" rx="5" fill="white"/>
-          <rect x="84" y="20" width="10" height="60" rx="5" fill="white"/>
-          <rect x="102" y="30" width="10" height="40" rx="5" fill="white"/>
-          <rect x="120" y="35" width="10" height="30" rx="5" fill="white"/>
-        </svg>
-        <h1 class="text-4xl lg:text-5xl font-black leading-tight">Noliae Mail</h1>
-        <p class="mt-3 text-white/90 text-sm leading-relaxed">
-          Messagerie professionnelle souveraine, open source, hébergée sur ton infrastructure.
-        </p>
-        <ul class="mt-6 space-y-2 text-sm text-white/85">
-          <li class="flex items-center gap-2"><span>✓</span>Multi-domaines & multi-administrateurs (RBAC)</li>
-          <li class="flex items-center gap-2"><span>✓</span>2FA TOTP, PGP, anti-spam rspamd</li>
-          <li class="flex items-center gap-2"><span>✓</span>Annuaire, boîtes partagées, mailing lists</li>
-        </ul>
-      </div>
     </aside>
 
     <!-- ── Panneau de droite : formulaire ── -->
