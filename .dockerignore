@@ -1,4 +1,47 @@
+# Noliae Mail OSS — .dockerignore
+# Reduit la taille du build context + empeche de leaker des secrets host.
+
+# CRUCIAL : ne JAMAIS COPY le .env du host dans l'image.
+# - Risque de fuite de secrets dans des layers Docker publies.
+# - Risque de syntax error qui plante 'composer dump-autoload' au build
+#   (ex: MAIL_TRUSTED_NETS="..." mal quote sur le host).
+# Le runtime lit les vars via env_file: [.env] de docker-compose.
+.env
+.env.*
+!.env.example
+
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# Dependencies (re-installees par composer / npm dans le Dockerfile)
 node_modules
 vendor
-.git
+
+# Build outputs (regeneres par npm run build dans le Dockerfile)
+public/build
+public/hot
+
+# Storage runtime (mounte en volume Docker)
+storage/app/*
+!storage/app/.gitkeep
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*
 storage/logs/*
+!storage/logs/.gitkeep
+
+# IDE / OS
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# Tests + meta
+tests/
+phpunit.xml
+docker-compose*.yml
+*.log
+*.tmp
