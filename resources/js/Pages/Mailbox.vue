@@ -1499,7 +1499,7 @@ const props = defineProps({
   settings: { type: Object, default: () => ({ signature_html: '', ask_receipts: false }) },
   total: { type: Number, default: 0 },
   page: { type: Number, default: 1 },
-  per_page: { type: Number, default: 50 },
+  per_page: { type: Number, default: 40 },
   search: { type: String, default: '' },
   error: String,
   enable_noliae_ai: { type: Boolean, default: false },
@@ -3033,7 +3033,7 @@ function openFolder(path) {
   router.get('/webmail', { folder: path }, { preserveState: false });
 }
 // ── Pagination ──
-const totalPages = computed(() => Math.max(1, Math.ceil((props.total || 0) / (props.per_page || 50))));
+const totalPages = computed(() => Math.max(1, Math.ceil((props.total || 0) / (props.per_page || 40))));
 const pageRangeLabel = computed(() => {
   const t = props.total || 0;
   if (!t) return '';
@@ -3048,7 +3048,7 @@ function gotoPage(p) {
     folder: props.folder,
     q: props.search || undefined,
     page: next,
-    per_page: props.per_page !== 50 ? props.per_page : undefined,
+    per_page: props.per_page !== 40 ? props.per_page : undefined,
   }, { preserveState: false, preserveScroll: false });
 }
 function openMessage(uid) {

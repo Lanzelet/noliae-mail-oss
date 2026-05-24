@@ -45,7 +45,7 @@ class MailController extends Controller
         $uid      = $request->query('uid');
         $search   = trim((string) $request->query('q', ''));
         $page     = max(1, (int) $request->query('page', 1));
-        $perPage  = max(20, min(200, (int) $request->query('per_page', 50)));
+        $perPage  = max(20, min(200, (int) $request->query('per_page', 40)));
 
         $error = null;
         $folders = [];

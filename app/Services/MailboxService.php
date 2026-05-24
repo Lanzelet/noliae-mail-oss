@@ -429,7 +429,7 @@ class MailboxService
      * @param  string  $search  termes IMAP TEXT (vide = tout)
      * @return array {messages: [], total: int}
      */
-    public function messages(string $email, string $folder, int $limit = 50, string $search = '', int $page = 1): array
+    public function messages(string $email, string $folder, int $limit = 40, string $search = '', int $page = 1): array
     {
         $client = $this->client($email);
         $box = $client->getFolder($folder);
