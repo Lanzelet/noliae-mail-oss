@@ -37,14 +37,27 @@ class MailboxService
         return $out;
     }
 
+    /**
+     * Pool de clients IMAP par requête HTTP — évite de se reconnecter pour
+     * chaque appel (folders, messages, quota… 3-5 connexions par page).
+     * Le pool est implicitement détruit en fin de requête PHP.
+     */
+    private array $clientPool = [];
+
     private function client(string $email)
     {
+        if (isset($this->clientPool[$email])) {
+            try {
+                if ($this->clientPool[$email]->isConnected()) {
+                    return $this->clientPool[$email];
+                }
+            } catch (\Throwable $e) {}
+            unset($this->clientPool[$email]);
+        }
         $cm = new ClientManager();
         $client = $cm->make([
             'host'          => config('mail.imap_host'),
             'port'          => config('mail.imap_port'),
-            // Configurable via MAIL_IMAP_ENCRYPTION : "ssl" / "tls" / "starttls" / "" (plain).
-            // Démo OSS = plain car Dovecot interne sur réseau privé docker.
             'encryption'    => config('mail.imap_encryption') ?: false,
             'validate_cert' => (bool) config('mail.imap_validate_cert', false),
             'protocol'      => 'imap',
@@ -52,7 +65,14 @@ class MailboxService
             'password'      => config('mail.master_pass'),
         ]);
         $client->connect();
+        $this->clientPool[$email] = $client;
         return $client;
+    }
+    public function __destruct()
+    {
+        foreach ($this->clientPool as $c) {
+            try { $c->disconnect(); } catch (\Throwable $e) {}
+        }
     }
 
     /**
@@ -256,6 +276,13 @@ class MailboxService
 
     public function folders(string $email): array
     {
+        // Cache 5 min : l'arbre de dossiers change rarement
+        $cacheKey = 'mb:folders:' . md5($email);
+        try {
+            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            if (is_array($cached)) return $cached;
+        } catch (\Throwable $e) {}
+
         $client = $this->client($email);
         $out = [];
         foreach ($client->getFolders(false) as $folder) {
@@ -267,10 +294,16 @@ class MailboxService
                 'locked' => $rank < 10, // INBOX + dossiers spéciaux : non supprimables
             ];
         }
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         // INBOX toujours en tête, puis dossiers spéciaux, puis dossiers libres (alpha).
         usort($out, fn ($a, $b) => ($a['rank'] <=> $b['rank']) ?: strcasecmp($a['name'], $b['name']));
+        try { \Illuminate\Support\Facades\Cache::put($cacheKey, $out, 300); } catch (\Throwable $e) {}
         return $out;
+    }
+    /** Invalide le cache des dossiers (createFolder, deleteFolder). */
+    private function invalidateFoldersList(string $email): void
+    {
+        try { \Illuminate\Support\Facades\Cache::forget('mb:folders:' . md5($email)); } catch (\Throwable $e) {}
     }
 
     /** Crée un dossier. */
@@ -278,7 +311,7 @@ class MailboxService
     {
         $client = $this->client($email);
         $client->createFolder($name);
-        $client->disconnect();
+        $this->invalidateFoldersList($email);
     }
 
     /** Supprime un dossier (interdit pour INBOX et les dossiers spéciaux). */
@@ -292,7 +325,7 @@ class MailboxService
         if ($folder) {
             $folder->delete();
         }
-        $client->disconnect();
+        $this->invalidateFoldersList($email);
     }
 
     /** Déplace un message d'un dossier vers un autre. */
@@ -304,7 +337,7 @@ class MailboxService
         if ($m) {
             $m->move($target);
         }
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         $this->invalidateFolder($email, $folder);
         if (isset($target) && is_string($target)) $this->invalidateFolder($email, $target);
     }
@@ -350,7 +383,7 @@ class MailboxService
                 }
             }
         }
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         $this->invalidateFolder($email, $folder);
         if (! empty($trash)) $this->invalidateFolder($email, $trash);
     }
@@ -367,7 +400,7 @@ class MailboxService
                 $m->move($target);
             }
         }
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         $this->invalidateFolder($email, $folder);
         if (! empty($target)) $this->invalidateFolder($email, $target);
     }
@@ -384,7 +417,7 @@ class MailboxService
                 $m->move($target);
             }
         }
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         $this->invalidateFolder($email, $folder);
         if (! empty($target)) $this->invalidateFolder($email, $target);
     }
@@ -398,7 +431,7 @@ class MailboxService
         if ($m) {
             try { $on ? $m->setFlag('Flagged') : $m->unsetFlag('Flagged'); } catch (\Throwable $e) {}
         }
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         $this->invalidateFolder($email, $folder);
     }
 
@@ -420,7 +453,7 @@ class MailboxService
                 try { $m->setFlag('$Noliae-' . $color); } catch (\Throwable $e) {}
             }
         }
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         $this->invalidateFolder($email, $folder);
     }
 
@@ -435,7 +468,7 @@ class MailboxService
                 $seen ? $m->setFlag('Seen') : $m->unsetFlag('Seen');
             } catch (\Throwable $e) {}
         }
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         $this->invalidateFolder($email, $folder);
     }
 
@@ -522,7 +555,7 @@ class MailboxService
                 'auto_submitted' => $autoSub,
             ];
         }
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
 
         usort($out, fn ($a, $b) => strcmp((string) ($b['date'] ?? ''), (string) ($a['date'] ?? '')));
 
@@ -571,7 +604,7 @@ class MailboxService
         $box = $client->getFolder($folder);
         $m = $box->query()->getMessageByUid($uid);
         if (! $m) {
-            $client->disconnect();
+            // pool: déconnexion en fin de requête
             return null;
         }
         $from = $this->addr($m->getFrom());
@@ -673,7 +706,7 @@ class MailboxService
             $m->setFlag('Seen');
         } catch (\Throwable $e) {
         }
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         // Cache 7 jours : corps de mail = immutable côté IMAP
         try { \Illuminate\Support\Facades\Cache::put($cacheKey, $data, 7 * 86400); } catch (\Throwable $e) {}
         // Marquer "vu" change la liste -> invalide les pages
@@ -684,10 +717,16 @@ class MailboxService
     /** Source RFC822 brute du message (équivalent Gmail « Afficher l'original »). */
     public function raw(string $email, string $folder, int $uid): ?string
     {
+        $cacheKey = 'mb:raw:' . md5($email . '|' . $folder . '|' . $uid);
+        try {
+            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            if (is_string($cached)) return $cached;
+        } catch (\Throwable $e) {}
+
         $client = $this->client($email);
         $box = $client->getFolder($folder);
         $m = $box->query()->getMessageByUid($uid);
-        if (! $m) { $client->disconnect(); return null; }
+        if (! $m) return null;
         $raw = '';
         try {
             // Webklex expose le raw via getStructure + body parts.
@@ -697,26 +736,33 @@ class MailboxService
             $body = (string) $m->getRawBody();
             $raw = trim($hdrs) . "\r\n\r\n" . $body;
         } catch (\Throwable $e) {}
-        $client->disconnect();
+        if ($raw !== '') {
+            try { \Illuminate\Support\Facades\Cache::put($cacheKey, $raw, 7 * 86400); } catch (\Throwable $e) {}
+        }
         return $raw ?: null;
     }
 
     /** Récupère le contenu binaire d'une pièce jointe pour téléchargement / preview. */
     public function attachment(string $email, string $folder, int $uid, string $name): ?array
     {
+        $cacheKey = 'mb:att:' . md5($email . '|' . $folder . '|' . $uid . '|' . $name);
+        try {
+            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            if (is_array($cached)) return $cached;
+        } catch (\Throwable $e) {}
+
         $client = $this->client($email);
         $box = $client->getFolder($folder);
         $m = $box->query()->getMessageByUid($uid);
-        if (! $m) { $client->disconnect(); return null; }
+        if (! $m) return null;
         foreach ($m->getAttachments() as $a) {
             if ((string) $a->name === $name) {
                 $out = ['name' => $name, 'mime' => (string) ($a->content_type ?: 'application/octet-stream'),
                     'content' => (string) $a->getContent()];
-                $client->disconnect();
+                try { \Illuminate\Support\Facades\Cache::put($cacheKey, $out, 7 * 86400); } catch (\Throwable $e) {}
                 return $out;
             }
         }
-        $client->disconnect();
         return null;
     }
 
@@ -750,7 +796,7 @@ class MailboxService
                 ];
             }
         } catch (\Throwable $e) {}
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         // tri chronologique ASC dans le thread
         usort($out, fn ($a, $b) => strcmp((string) ($a['date'] ?? ''), (string) ($b['date'] ?? '')));
         return $out;
@@ -777,8 +823,10 @@ class MailboxService
         }
         $limit = (int) ($row ?? config('mail.quota_bytes'));
 
+        // Cache long (10 min) : ce calcul scan TOUS les dossiers (lourd sur
+        // grosses boîtes 70k+ mails). Le quota évolue peu côté UX.
         $used = \Illuminate\Support\Facades\Cache::remember(
-            'mail_quota_' . md5($email), 120,
+            'mail_quota_' . md5($email), 600,
             function () use ($email) {
                 $total = 0;
                 try {
@@ -793,7 +841,7 @@ class MailboxService
                         } catch (\Throwable $e) {
                         }
                     }
-                    $client->disconnect();
+                    // pool: déconnexion en fin de requête
                 } catch (\Throwable $e) {
                 }
                 return $total;
@@ -817,7 +865,7 @@ class MailboxService
         $client = $this->client($email);
         $folder = $this->specialFolderPath($client, 1, ['Drafts']);
         if (! $folder) {
-            $client->disconnect();
+            // pool: déconnexion en fin de requête
             throw new \RuntimeException('Dossier Brouillons indisponible.');
         }
         $box = $client->getFolder($folder);
@@ -872,7 +920,7 @@ class MailboxService
             }
         }
 
-        $client->disconnect();
+        // pool: déconnexion en fin de requête
         return $newUid;
     }
 
@@ -897,7 +945,7 @@ class MailboxService
                 $sent = $client->getFolder('Sent');
             }
             $sent->appendMessage($raw, ['\\Seen']);
-            $client->disconnect();
+            // pool: déconnexion en fin de requête
         } catch (\Throwable $e) {
         }
     }
