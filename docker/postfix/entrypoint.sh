@@ -47,4 +47,23 @@ rsyslogd
 # Crée maps Postfix
 newaliases 2>/dev/null || true
 
+# Démarre les 3 daemons Python policy/admin en background.
+# Bind 0.0.0.0 pour que le web container y accède via le réseau intnet.
+mkdir -p /var/log
+: "${POSTFIX_QUEUE_TOKEN:=}"
+: "${LIST_POLICY_PORT:=10031}"
+: "${RATE_LIMIT_PORT:=10033}"
+
+export BIND_ADDR=0.0.0.0 PORT=10032 QUEUE_TOKEN="$POSTFIX_QUEUE_TOKEN"
+python3 /usr/local/bin/queue-daemon.py >>/var/log/queue-daemon.log 2>&1 &
+echo "[entrypoint] queue-daemon → :10032"
+
+export LIST_POLICY_PORT
+python3 /usr/local/bin/list-policy.py >>/var/log/list-policy.log 2>&1 &
+echo "[entrypoint] list-policy → :$LIST_POLICY_PORT"
+
+export RATE_LIMIT_PORT
+python3 /usr/local/bin/rate-limit.py >>/var/log/rate-limit.log 2>&1 &
+echo "[entrypoint] rate-limit → :$RATE_LIMIT_PORT"
+
 exec "$@"

@@ -48,6 +48,13 @@ services:
       CACHE_STORE: redis
       QUEUE_CONNECTION: redis
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      # Daemon Postfix queue (quarantaine spam / force-delivery)
+      POSTFIX_QUEUE_HOST: postfix
+      POSTFIX_QUEUE_PORT: 10032
+      POSTFIX_QUEUE_TOKEN: ${POSTFIX_QUEUE_TOKEN}
+      # Rspamd controller API
+      RSPAMD_URL: http://rspamd:11334
+      RSPAMD_PASSWORD: ${RSPAMD_PASSWORD:-}
     volumes:
       - web-storage:/var/www/html/storage
     networks: [intnet]
@@ -131,10 +138,14 @@ services:
     env_file: [.env]
     environment:
       MAIL_DOMAIN: ${MAIL_DOMAIN}
+      MAIL_TRUSTED_NETS: ${MAIL_TRUSTED_NETS:-127.0.0.0/8 [::1]/128 172.16.0.0/12}
       DB_HOST: postgres
       DB_NAME: ${DB_NAME:-noliaemail}
       DB_USER: ${DB_USER:-noliae}
       DB_PASSWORD: ${DB_PASSWORD}
+      # Daemons Python policy/admin lancés en background par l'entrypoint.
+      POSTFIX_QUEUE_TOKEN: ${POSTFIX_QUEUE_TOKEN}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     ports:
       - "25:25"      # MX entrant + relay
       - "465:465"    # Submissions (SMTPS)
