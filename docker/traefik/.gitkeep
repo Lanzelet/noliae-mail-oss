@@ -1,0 +1,2 @@
+# Dossier de config dynamique Traefik (cert auto-signé + fichier tls.yml)
+# Géré par install.sh. Ne commit pas les .pem ici.

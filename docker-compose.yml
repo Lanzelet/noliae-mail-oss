@@ -244,10 +244,16 @@ services:
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      # File provider pour le cert auto-signé fallback (cf docker/traefik/)
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
       - --entrypoints.web.address=:80
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
+      # Cert resolver LE : marche uniquement si le domaine est joignable
+      # depuis internet (port 80 ouvert + DNS public). Si LE échoue, Traefik
+      # tombe sur le cert par défaut (auto-signé) défini dans dynamic/tls.yml.
       - --certificatesresolvers.le.acme.email=${ADMIN_EMAIL}
       - --certificatesresolvers.le.acme.storage=/acme/acme.json
       - --certificatesresolvers.le.acme.httpchallenge=true
@@ -258,6 +264,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik-acme:/acme
+      # Cert auto-signé fallback (généré par install.sh si LE pas dispo).
+      # Sert pour les déploiements en LAN, IP locale sans NAT, ou tests.
+      - ./docker/traefik:/etc/traefik/dynamic:ro
     networks: [intnet]
 
 networks:

@@ -27,7 +27,7 @@ echo "  ╚═══════════════════════
 echo ""
 
 # ── 1. Vérifs prérequis ─────────────────────────────────────────────
-step "1/8 · Vérification des prérequis"
+step "1/9 · Vérification des prérequis"
 for cmd in docker openssl curl; do
   if ! command -v $cmd >/dev/null 2>&1; then
     c_red "✗ $cmd manquant. Installe-le d'abord.\n"; exit 1
@@ -42,7 +42,7 @@ c_green "  ✓ docker compose v2\n"
   c_red "✗ Lance ce script depuis la racine du repo noliae-mail-oss.\n"; exit 1; }
 
 # ── 2. Prompts utilisateur ──────────────────────────────────────────
-step "2/8 · Configuration"
+step "2/9 · Configuration"
 if [ -f .env ]; then
   read -p "$(c_yellow ".env existe déjà. Écraser ? (oui/NON) : ")" overwrite
   [ "$overwrite" = "oui" ] || { echo "Abandon."; exit 0; }
@@ -66,7 +66,7 @@ read -p "$(c_bold "Autoriser inscriptions publiques ? (oui/NON) : ")" ALLOW_REG
 [ "$ALLOW_REG" = "oui" ] && ALLOW_REGISTRATION=true || ALLOW_REGISTRATION=false
 
 # ── 3. Génère TOUS les secrets ──────────────────────────────────────
-step "3/8 · Génération des secrets aléatoires"
+step "3/9 · Génération des secrets aléatoires"
 gen_secret() { openssl rand -base64 32 | tr -d '/+=' | head -c 40; }
 DB_PASSWORD=$(gen_secret)
 MAIL_MASTER_PASS=$(gen_secret)
@@ -101,14 +101,64 @@ rm -f .env.bak
 
 c_green "  ✓ .env écrit\n"
 
-# ── 4. Build des images Docker ──────────────────────────────────────
-step "4/8 · Build des images Docker (~5 min, patience)"
+# ── 4. Détection LE possible + fallback cert auto-signé ────────────
+step "4/9 · Détection accessibilité Let's Encrypt"
+
+# Test : le domaine résout-il vers une IP publique routable, et le serveur
+# est-il joignable sur port 80 depuis internet ? Si non → cert auto-signé.
+LE_OK=0
+RESOLVED_IP=$(getent hosts "${MAIL_DOMAIN}" 2>/dev/null | awk '{print $1}' | head -1 || echo "")
+SERVER_IP=$(curl -s --max-time 5 https://api.ipify.org || echo "")
+
+if [ -n "$RESOLVED_IP" ] && [ -n "$SERVER_IP" ] && [ "$RESOLVED_IP" = "$SERVER_IP" ]; then
+  c_green "  ✓ ${MAIL_DOMAIN} résout vers ${SERVER_IP} (IP publique du serveur)\n"
+  c_green "  → Let's Encrypt sera tenté au premier démarrage Traefik\n"
+  LE_OK=1
+else
+  c_yellow "  ⚠ ${MAIL_DOMAIN} résout vers '${RESOLVED_IP:-AUCUN}' (IP publique serveur: '${SERVER_IP:-INDÉTECTABLE}')\n"
+  c_yellow "  → Let's Encrypt impossible (LAN / IP locale / DNS pas propagé)\n"
+  c_yellow "  → Génération d'un cert auto-signé (TLS valide, juste pas trusted par les navigateurs)\n"
+fi
+
+# Toujours générer le cert auto-signé en fallback (Traefik l'utilisera si LE échoue)
+mkdir -p docker/traefik
+if [ ! -f docker/traefik/cert.pem ] || [ ! -f docker/traefik/key.pem ]; then
+  openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+    -keyout docker/traefik/key.pem \
+    -out docker/traefik/cert.pem \
+    -subj "/CN=${MAIL_DOMAIN}/O=Noliae Mail Self-Signed" \
+    -addext "subjectAltName=DNS:${MAIL_DOMAIN},DNS:*.${MAIL_DOMAIN},DNS:s3.${MAIL_DOMAIN}" 2>/dev/null
+  chmod 644 docker/traefik/cert.pem
+  chmod 600 docker/traefik/key.pem
+  c_green "  ✓ Cert auto-signé créé (CN=${MAIL_DOMAIN}, validité 825j)\n"
+fi
+
+# Config dynamique Traefik : sert le cert auto-signé comme default
+cat > docker/traefik/tls.yml <<EOF
+# Auto-généré par install.sh. Édite à tes risques.
+# Sert le cert auto-signé comme defaultCertificate Traefik : utilisé si
+# Let's Encrypt n'a pas pu obtenir de cert valide pour ce domaine.
+tls:
+  certificates:
+    - certFile: /etc/traefik/dynamic/cert.pem
+      keyFile:  /etc/traefik/dynamic/key.pem
+      stores: [default]
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/dynamic/cert.pem
+        keyFile:  /etc/traefik/dynamic/key.pem
+EOF
+c_green "  ✓ Config TLS dynamique Traefik écrite (docker/traefik/tls.yml)\n"
+
+# ── 5. Build des images Docker ──────────────────────────────────────
+step "5/9 · Build des images Docker (~5 min, patience)"
 docker compose build 2>&1 | grep -E '^(#[0-9]+ \[)|^ ✔|^ ✘|^FAILED|^ERROR' | tail -20 || true
 docker compose build || { c_red "\n✗ Build échoué. Vérifie les logs ci-dessus.\n"; exit 1; }
 c_green "  ✓ 4 images buildées (web · postfix · dovecot · rspamd)\n"
 
 # ── 5. Démarrage de la stack ────────────────────────────────────────
-step "5/8 · Démarrage de la stack"
+step "6/9 · Démarrage de la stack"
 docker compose up -d
 c_green "  ✓ Containers démarrés\n"
 
@@ -121,7 +171,7 @@ for i in $(seq 1 60); do
 done
 
 # ── 6. Attente génération clé DKIM par Postfix ──────────────────────
-step "6/8 · Attente génération clé DKIM (opendkim-genkey au boot Postfix)"
+step "7/9 · Attente génération clé DKIM (opendkim-genkey au boot Postfix)"
 DKIM_TXT_FILE="/etc/opendkim/keys/${MAIL_DOMAIN}/mail.txt"
 echo -n "  "
 for i in $(seq 1 30); do
@@ -144,7 +194,7 @@ else
 fi
 
 # ── 7. Génère DNS-RECORDS.txt avec la vraie clé DKIM ────────────────
-step "7/8 · Écriture DNS-RECORDS.txt"
+step "8/9 · Écriture DNS-RECORDS.txt"
 SERVER_IP=$(curl -s --max-time 5 https://api.ipify.org || echo "<ton-IP-publique>")
 
 cat > DNS-RECORDS.txt <<EOF
@@ -189,7 +239,7 @@ EOF
 c_green "  ✓ DNS-RECORDS.txt écrit\n"
 
 # ── 8. Smoke test ───────────────────────────────────────────────────
-step "8/8 · Smoke test"
+step "9/9 · Smoke test"
 sleep 3
 WEB_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" -H "Host: ${MAIL_DOMAIN}" http://localhost 2>/dev/null || echo "—")
 echo "  HTTP local (web container)  : $(c_cyan "${WEB_STATUS}")"

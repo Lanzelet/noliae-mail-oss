@@ -22,5 +22,7 @@ docker/configs-149.tgz
 docker/reference
 /volumes
 DNS-RECORDS.txt
+docker/traefik/*.pem
+docker/traefik/tls.yml
 .DS_Store
 ._*
