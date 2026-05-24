@@ -102,7 +102,8 @@ Pre-check avant `verifyPassword`, reset auto sur login OK, hit window 15 min, me
 ```bash
 git clone https://github.com/Noliae/noliae-mail-oss.git
 cd noliae-mail-oss
-./install.sh         # interactif : domaine, DKIM, secrets, DNS-RECORDS.txt
+./install.sh                # interactif : domaine, DKIM, secrets, DNS-RECORDS.txt
+docker compose build        # build local des 4 images (web/postfix/dovecot/rspamd) — ~5 min
 docker compose up -d
 ```
 

@@ -16,7 +16,6 @@ services:
     build:
       context: .
       dockerfile: docker/web/Dockerfile
-    image: ghcr.io/noliae/noliae-mail-oss-web:latest
     restart: unless-stopped
     depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_started } }
     env_file: [.env]
@@ -166,7 +165,6 @@ services:
   ##########################
   postfix:
     build: ./docker/postfix
-    image: ghcr.io/noliae/noliae-mail-oss-postfix:latest
     restart: unless-stopped
     hostname: ${MAIL_DOMAIN}
     depends_on: [postgres, rspamd]
@@ -198,7 +196,6 @@ services:
   ##########################
   dovecot:
     build: ./docker/dovecot
-    image: ghcr.io/noliae/noliae-mail-oss-dovecot:latest
     restart: unless-stopped
     hostname: ${MAIL_DOMAIN}
     depends_on: [postgres]
@@ -224,7 +221,6 @@ services:
   ##########################
   rspamd:
     build: ./docker/rspamd
-    image: ghcr.io/noliae/noliae-mail-oss-rspamd:latest
     restart: unless-stopped
     env_file: [.env]
     environment:
