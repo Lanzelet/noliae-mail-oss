@@ -185,16 +185,20 @@ class SendService
                 . '</tr>';
         }
         $expiry = $maxTtl ?: AttachmentStore::TTL_DAYS;
+        // Branding orga : on remplace "Noliae" hardcodé par le nom de l'org
+        // si défini (cf table organizations). Personnalisable plus tard via
+        // app_settings.attachment_footer si besoin (whitelabel total).
+        $orgName = htmlspecialchars((string) (\Illuminate\Support\Facades\DB::table('organizations')->value('name') ?: 'Mail'), ENT_QUOTES);
 
         return '<div style="margin-top:28px;padding:14px;border:1px solid #f1f1f3;border-radius:14px;'
             . 'background:#fafaf7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
             . '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;'
-            .  'color:#FF4D2E;margin-bottom:8px">Pièces jointes · Noliae Mail</div>'
+            .  'color:#FF4D2E;margin-bottom:8px">Pièces jointes · ' . $orgName . '</div>'
             . '<table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse">'
             . $rows
             . '</table>'
             . '<div style="font-size:10.5px;color:#9ca3af;margin-top:10px">'
-            .  'Liens valables ' . $expiry . ' jours · stockés sur l\'infrastructure souveraine Noliae.'
+            .  'Liens valables ' . $expiry . ' jours.'
             . '</div>'
             . '</div>';
     }

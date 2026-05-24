@@ -134,6 +134,12 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-noliae}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # CRUCIAL pour MinIO derrière Traefik : sans ça MinIO calcule la
+      # signature S3 pour http://minio:9000 (vu en interne) au lieu de
+      # l'URL publique. Conséquence : tous les presigned URLs renvoient
+      # SignatureDoesNotMatch quand le browser tente d'y accéder.
+      MINIO_SERVER_URL: ${AWS_ENDPOINT:-https://s3.${MAIL_DOMAIN}}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_CONSOLE_URL:-https://s3.${MAIL_DOMAIN}:9001}
     volumes: [minio-data:/data]
     networks: [intnet]
     labels:
