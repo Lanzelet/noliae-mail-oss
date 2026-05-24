@@ -775,7 +775,27 @@ HTML;
      */
     public function send(Request $request, AttachmentStore $store, MailQueue $queue)
     {
-        $email = $request->session()->get('mail_user');
+        $loginEmail = $request->session()->get('mail_user');
+        $email = $loginEmail;
+
+        // Si la requête arrive depuis une boîte partagée (?as=ID), on envoie
+        // au nom de cette boîte (sous réserve d'ACL valide).
+        $asSharedId = (int) $request->query('as', 0);
+        if ($asSharedId) {
+            $shared = \Illuminate\Support\Facades\DB::table('shared_mailbox_acls')
+                ->join('shared_mailboxes', 'shared_mailboxes.id', '=', 'shared_mailbox_acls.shared_mailbox_id')
+                ->where('shared_mailbox_acls.user_email', strtolower((string) $loginEmail))
+                ->where('shared_mailboxes.id', $asSharedId)
+                ->whereIn('shared_mailbox_acls.role', ['send', 'manage'])
+                ->where('shared_mailboxes.active', true)
+                ->select('shared_mailboxes.email','shared_mailboxes.display_name')
+                ->first();
+            if ($shared) {
+                $email = $shared->email;
+                // From: surchargé avec le nom affiché de la boîte partagée
+                $request->session()->put('_shared_from_name', $shared->display_name);
+            }
+        }
 
         $data = $request->validate([
             'to'             => 'required|string|max:2000',
@@ -822,9 +842,14 @@ HTML;
             $fromAddr = ! empty($data['from_alias']) && in_array($data['from_alias'], $aliasesAllowed, true)
                 ? $data['from_alias'] : $email;
 
+            // En mode shared, on prend le display_name de la boîte partagée
+            // (sinon le nom du compte logué).
+            $fromName = $request->session()->pull('_shared_from_name')
+                ?? (string) $request->session()->get('mail_name', '');
+
             $payload = [
                 'from'        => $fromAddr,
-                'from_name'   => (string) $request->session()->get('mail_name', ''),
+                'from_name'   => $fromName,
                 'to'          => $to,
                 'cc'          => $split($data['cc'] ?? ''),
                 'subject'     => $data['subject'] ?? '',

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Services\AppSettings;
+use App\Services\AuditLog;
 use Inertia\Inertia;
 
 /**
@@ -75,6 +76,7 @@ class AdminController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        AuditLog::record($request, 'domain.create', $name);
         return redirect('/admin/domains')->with('success', "Domaine $name ajouté.");
     }
 
@@ -86,6 +88,7 @@ class AdminController extends Controller
             return back()->withErrors(['name' => 'Impossible : il existe des comptes sur ce domaine.']);
         }
         DB::table('mail_domains')->where('id', $id)->delete();
+        AuditLog::record($request, 'domain.delete', (string) $id);
         return back()->with('success', 'Domaine supprimé.');
     }
 
@@ -133,6 +136,7 @@ class AdminController extends Controller
             'created_at'   => now(),
             'updated_at'   => now(),
         ]);
+        AuditLog::record($request, 'account.create', $email, ['quota_mb' => $data['quota_mb'] ?? null]);
         return redirect('/admin/accounts')->with('success', "Compte $email créé.");
     }
 
@@ -150,6 +154,7 @@ class AdminController extends Controller
             'active'     => ! $row->active,
             'updated_at' => now(),
         ]);
+        AuditLog::record($request, $row->active ? 'account.suspend' : 'account.activate', $row->email);
         return back()->with('success', $row->active ? 'Compte suspendu.' : 'Compte réactivé.');
     }
 
@@ -177,6 +182,7 @@ class AdminController extends Controller
         $maildirsize = '/var/vmail/' . ltrim($row->maildir, '/') . 'Maildir/maildirsize';
         if (is_writable($maildirsize)) @unlink($maildirsize);
 
+        AuditLog::record($request, 'account.quota_update', $row->email, ['new_quota_mb' => $data['quota_mb']]);
         return back()->with('success',
             "Quota mis a jour ({$data['quota_mb']} Mo). " .
             "L'utilisateur doit se deconnecter/reconnecter pour appliquer la nouvelle limite."
@@ -192,6 +198,7 @@ class AdminController extends Controller
         if (strtolower($row->email) === $adminEmail) {
             return back()->withErrors(['email' => 'Tu ne peux pas supprimer le compte administrateur (lockout).']);
         }
+        AuditLog::record($request, 'account.delete', $row->email);
         DB::table('mail_accounts')->where('id', $id)->delete();
         return back()->with('success', 'Compte supprimé.');
     }
@@ -205,6 +212,7 @@ class AdminController extends Controller
             'password'   => $hash,
             'updated_at' => now(),
         ]);
+        AuditLog::record($request, 'account.password_reset', (string) $id);
         return back()->with('success', 'Mot de passe réinitialisé.');
     }
 
@@ -252,6 +260,7 @@ class AdminController extends Controller
             'created_at'   => now(),
             'updated_at'   => now(),
         ]);
+        AuditLog::record($request, 'list.create', $address, ['scope' => $data['scope']]);
         return redirect("/admin/lists")->with('success', "Liste $address créée.");
     }
 
@@ -323,6 +332,7 @@ class AdminController extends Controller
     {
         $this->authorize_admin($request);
         DB::table('mail_lists')->where('id', $id)->delete();
+        AuditLog::record($request, 'list.delete', (string) $id);
         return redirect('/admin/lists')->with('success', 'Liste supprimée.');
     }
 
@@ -386,6 +396,7 @@ class AdminController extends Controller
             DB::rollBack();
             return back()->withErrors(['local' => 'Échec création : ' . $e->getMessage()]);
         }
+        AuditLog::record($request, 'shared.create', $email);
         return redirect('/admin/shared')->with('success', "Boîte partagée $email créée.");
     }
 
@@ -422,12 +433,14 @@ class AdminController extends Controller
             'shared_mailbox_id' => $id, 'user_email' => $email, 'role' => $data['role'],
             'created_at' => now(), 'updated_at' => now(),
         ]);
+        AuditLog::record($request, 'shared.grant', $email, ['role' => $data['role'], 'mailbox_id' => $id]);
         return back()->with('success', "$email a maintenant l'accès ({$data['role']}).");
     }
 
     public function revokeSharedAccess(Request $request, int $id, int $aclId)
     {
         $this->authorize_admin($request);
+        AuditLog::record($request, 'shared.revoke', (string) $aclId, ['mailbox_id' => $id]);
         DB::table('shared_mailbox_acls')->where('shared_mailbox_id', $id)->where('id', $aclId)->delete();
         return back()->with('success', 'Accès révoqué.');
     }
@@ -497,6 +510,7 @@ class AdminController extends Controller
             'created_at'  => now(),
             'updated_at'  => now(),
         ]);
+        AuditLog::record($request, 'alias.create', $source, ['destination' => $dest]);
         return back()->with('success', "Forward $source → $dest créé.");
     }
 
@@ -515,6 +529,7 @@ class AdminController extends Controller
     public function deleteAlias(Request $request, int $id)
     {
         $this->authorize_admin($request);
+        AuditLog::record($request, 'alias.delete', (string) $id);
         DB::table('mail_aliases')->where('id', $id)->delete();
         return back()->with('success', 'Forward supprimé.');
     }
@@ -567,7 +582,23 @@ class AdminController extends Controller
         foreach ($data as $key => $value) {
             AppSettings::set($key, is_bool($value) ? ($value ? '1' : '0') : (string) $value);
         }
+        AuditLog::record($request, 'settings.update', null, array_keys($data));
         return back()->with('success', 'Paramètres enregistrés.');
+    }
+
+
+    /* ──────────────── Audit log ──────────────── */
+
+    public function auditLog(Request $request)
+    {
+        $this->authorize_admin($request);
+        $entries = DB::table('audit_log')
+            ->orderByDesc('created_at')
+            ->limit(500)
+            ->get()->toArray();
+        return Inertia::render('Admin/Audit', [
+            'entries' => $entries,
+        ]);
     }
 
 }

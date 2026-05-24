@@ -2403,7 +2403,10 @@ function normalizeBody(html) {
 // File « envoi différé client-side » : 30 s pour annuler
 const pendingSend = ref(null); // { payload, timeoutId, endsAt }
 function actuallySend(payload) {
-  router.post('/webmail/send', payload, {
+  // Si on est en mode "vue boîte partagée", on transmet l'ID pour que le
+  // backend signe l'envoi avec l'identité shared (after ACL check).
+  const url = asSharedId.value ? `/webmail/send?as=${asSharedId.value}` : '/webmail/send';
+  router.post(url, payload, {
     forceFormData: true, preserveScroll: true,
     onProgress: (e) => { if (e?.percentage !== undefined) uploadPct.value = e.percentage; },
     onSuccess: () => { composing.value = false; uploadPct.value = 0; draftUid.value = null; },

@@ -101,6 +101,7 @@ Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->prefix('admin')->g
     Route::delete('/shared/{id}',                     [AdminController::class, 'deleteSharedMailbox'])->whereNumber('id');
     Route::get('/settings',                 [AdminController::class, 'settings']);
     Route::post('/settings',                [AdminController::class, 'saveSettings']);
+    Route::get('/audit',                    [AdminController::class, 'auditLog']);
 });
 
 Route::get('/up', fn () => response('OK'));

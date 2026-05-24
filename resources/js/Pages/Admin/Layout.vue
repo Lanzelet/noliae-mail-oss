@@ -42,6 +42,7 @@ const tabs = [
   { label: 'Listes',          href: '/admin/lists' },
   { label: 'Partagées',       href: '/admin/shared' },
   { label: 'Paramètres',      href: '/admin/settings' },
+  { label: 'Audit',           href: '/admin/audit' },
 ];
 const flash = computed(() => usePage().props.flash);
 function isActive(h) { const u = usePage().url; return h === '/admin' ? u === '/admin' : u.startsWith(h); }

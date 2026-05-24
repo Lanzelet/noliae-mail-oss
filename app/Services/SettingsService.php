@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -17,6 +18,9 @@ class SettingsService
         return self::DIR . '/' . md5(strtolower(trim($email))) . '.json';
     }
 
+    /** Champs chiffrés au repos (Laravel Crypt = AES-256-CBC + HMAC, clé APP_KEY). */
+    private const ENCRYPTED = ['pgp_private_key'];
+
     public function get(string $email): array
     {
         $disk = Storage::disk('local');
@@ -25,6 +29,18 @@ class SettingsService
         }
         try {
             $data = json_decode($disk->get($this->path($email)), true) ?: [];
+            // Déchiffre les champs sensibles s'ils sont en forme chiffrée.
+            foreach (self::ENCRYPTED as $k) {
+                if (! empty($data[$k]) && str_starts_with((string) $data[$k], 'enc:')) {
+                    try {
+                        $data[$k] = Crypt::decryptString(substr($data[$k], 4));
+                    } catch (\Throwable $e) {
+                        // Si le déchiffrement échoue (APP_KEY changée, corruption),
+                        // on retourne une chaîne vide plutôt que de cracher.
+                        $data[$k] = '';
+                    }
+                }
+            }
             return array_merge($this->defaults(), $data);
         } catch (\Throwable $e) {
             return $this->defaults();
@@ -35,7 +51,15 @@ class SettingsService
     {
         $merged = array_merge($this->get($email), $data);
         $merged['_email'] = strtolower(trim($email)); // pour l'annuaire PGP
-        Storage::disk('local')->put($this->path($email), json_encode($merged, JSON_UNESCAPED_UNICODE));
+        // Chiffre les champs sensibles avant d'écrire sur disque.
+        $toWrite = $merged;
+        foreach (self::ENCRYPTED as $k) {
+            if (! empty($toWrite[$k]) && ! str_starts_with((string) $toWrite[$k], 'enc:')) {
+                $toWrite[$k] = 'enc:' . Crypt::encryptString((string) $toWrite[$k]);
+            }
+        }
+        Storage::disk('local')->put($this->path($email), json_encode($toWrite, JSON_UNESCAPED_UNICODE));
+        // Le retour reste en clair (consommé par le controller en mémoire).
         return $merged;
     }
 
