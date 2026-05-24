@@ -646,6 +646,73 @@ HTML;
         abort(404);
     }
 
+    /* ──────────────── SMTP tokens (mots de passe app) ──────────────── */
+
+    /** GET /webmail/smtp-tokens — liste les tokens du compte connecté. */
+    public function smtpTokens(Request $request)
+    {
+        $email = $request->session()->get('mail_user');
+        $acc = \Illuminate\Support\Facades\DB::table('mail_accounts')
+            ->where('email', strtolower((string) $email))->first();
+        $tokens = $acc ? \Illuminate\Support\Facades\DB::table('smtp_tokens')
+            ->where('mail_account_id', $acc->id)
+            ->orderByDesc('created_at')
+            ->get(['id','label','last_used_at','created_at'])->toArray() : [];
+        return response()->json(['tokens' => $tokens]);
+    }
+
+    /** POST /webmail/smtp-tokens — génère un nouveau token (montré une seule fois). */
+    public function createSmtpToken(Request $request)
+    {
+        $email = $request->session()->get('mail_user');
+        $data  = $request->validate(['label' => 'required|string|max:100']);
+        $acc = \Illuminate\Support\Facades\DB::table('mail_accounts')
+            ->where('email', strtolower((string) $email))->where('active', true)->first();
+        abort_unless($acc, 404);
+        // Génère 24 caractères aléatoires (lisibles)
+        $plain = self::randomToken(24);
+        $hash = '{BLF-CRYPT}' . password_hash($plain, PASSWORD_BCRYPT, ['cost' => 12]);
+        $id = \Illuminate\Support\Facades\DB::table('smtp_tokens')->insertGetId([
+            'mail_account_id' => $acc->id,
+            'label'           => trim($data['label']),
+            'password_hash'   => $hash,
+            'created_at'      => now(),
+            'updated_at'      => now(),
+        ]);
+        return response()->json([
+            'id'       => $id,
+            'label'    => $data['label'],
+            'server'   => config('mail.primary_domain'),
+            'port'     => 587,
+            'username' => $email,
+            'password' => $plain,         // ← Une seule fois, jamais re-affiché
+            'warning'  => 'Note ce mot de passe maintenant — il ne sera plus jamais affiché.',
+        ]);
+    }
+
+    /** DELETE /webmail/smtp-tokens/{id} — révoque un token. */
+    public function deleteSmtpToken(Request $request, int $id)
+    {
+        $email = $request->session()->get('mail_user');
+        $acc = \Illuminate\Support\Facades\DB::table('mail_accounts')
+            ->where('email', strtolower((string) $email))->first();
+        abort_unless($acc, 404);
+        \Illuminate\Support\Facades\DB::table('smtp_tokens')
+            ->where('id', $id)->where('mail_account_id', $acc->id)->delete();
+        return response()->json(['ok' => true]);
+    }
+
+    /** Génère un token aléatoire lisible (sans 0/O/1/l ambigus). */
+    private static function randomToken(int $len): string
+    {
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+        $out = '';
+        for ($i = 0; $i < $len; $i++) {
+            $out .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        }
+        return $out;
+    }
+
     /** POST /webmail/settings — enregistre les réglages utilisateur. */
     public function saveSettings(Request $request, SettingsService $svc)
     {

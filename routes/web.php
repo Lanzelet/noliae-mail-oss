@@ -44,6 +44,9 @@ Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () 
     Route::post('/webmail/inline-image', [MailController::class, 'inlineImage']);
     Route::post('/webmail/draft', [MailController::class, 'saveDraft']);
     Route::post('/webmail/settings', [MailController::class, 'saveSettings']);
+    Route::get('/webmail/smtp-tokens',          [MailController::class, 'smtpTokens']);
+    Route::post('/webmail/smtp-tokens',         [MailController::class, 'createSmtpToken']);
+    Route::delete('/webmail/smtp-tokens/{id}',  [MailController::class, 'deleteSmtpToken'])->whereNumber('id');
     Route::post('/webmail/receipt', [MailController::class, 'sendReceipt']);
     Route::get('/webmail/pgp/contacts', [MailController::class, 'pgpContacts']);
     Route::post('/webmail/pgp/import',  [MailController::class, 'pgpImport']);

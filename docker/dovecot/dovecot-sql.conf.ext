@@ -1,20 +1,16 @@
-# Dovecot SQL lookup vers Postgres mail-oss
 driver = pgsql
 connect = host=${DB_HOST} dbname=${DB_NAME} user=${DB_USER} password=${DB_PASSWORD}
 default_pass_scheme = BLF-CRYPT
 
-# Auth : enleve le prefixe {BLF-CRYPT} stocké en DB (Dovecot le rajoute via scheme)
 password_query = \
   SELECT email AS user, \
          regexp_replace(password, '^\{BLF-CRYPT\}', '') AS password \
   FROM mail_accounts WHERE email = '%u' AND active = true
 
-# User : home, uid, gid
 user_query = \
   SELECT 5000 AS uid, 5000 AS gid, \
          '/var/vmail/' || maildir AS home, \
-         'maildir:/var/vmail/' || maildir || 'Maildir' AS mail, \
-         'maildir:storage=' || (quota_bytes/1024)::bigint AS quota_rule \
+         'maildir:/var/vmail/' || maildir || 'Maildir' AS mail \
   FROM mail_accounts WHERE email = '%u' AND active = true
 
 iterate_query = SELECT email AS user FROM mail_accounts WHERE active = true

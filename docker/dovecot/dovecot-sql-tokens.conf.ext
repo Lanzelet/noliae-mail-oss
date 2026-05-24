@@ -1,0 +1,10 @@
+driver = pgsql
+connect = host=${DB_HOST} dbname=${DB_NAME} user=${DB_USER} password=${DB_PASSWORD}
+default_pass_scheme = BLF-CRYPT
+
+password_query = \
+  SELECT a.email AS user, \
+         regexp_replace(t.password_hash, '^\{BLF-CRYPT\}', '') AS password \
+  FROM smtp_tokens t \
+  JOIN mail_accounts a ON a.id = t.mail_account_id \
+  WHERE a.email = '%u' AND a.active = true

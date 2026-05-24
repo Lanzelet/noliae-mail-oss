@@ -545,8 +545,28 @@ class AdminController extends Controller
         abort_unless($dom, 404);
         $serverIp = trim(@file_get_contents('https://api.ipify.org') ?: '<IP-SERVEUR>');
         // Lecture clé DKIM si présente
-        $dkimPubPath = "/etc/dkim/{$dom->name}.pub";
-        $dkimPub = is_readable($dkimPubPath) ? trim(file_get_contents($dkimPubPath)) : null;
+        // Lecture clé DKIM publique : on essaie plusieurs chemins (opendkim, rspamd, env).
+        $candidates = [
+            "/etc/opendkim/keys/{$dom->name}/mail.txt",     // opendkim-genkey
+            "/etc/rspamd/dkim/{$dom->name}.pub",            // rspamd dkim_signing
+            "/var/lib/rspamd/dkim/{$dom->name}.mail.pub",   // rspamd alt path
+            "/etc/dkim/{$dom->name}.pub",                   // fallback historique
+        ];
+        $dkimPub = null;
+        foreach ($candidates as $path) {
+            if (is_readable($path)) {
+                $raw = (string) file_get_contents($path);
+                // opendkim format = TXT record entier sur plusieurs lignes :
+                //   mail._domainkey IN TXT ( "v=DKIM1; ..." "p=AB..." )
+                // On extrait juste le contenu des quotes.
+                if (preg_match_all('/"([^"]+)"/', $raw, $m)) {
+                    $dkimPub = implode('', $m[1]);
+                } else {
+                    $dkimPub = trim(preg_replace('/[\s\r\n]+/', '', $raw));
+                }
+                break;
+            }
+        }
         return Inertia::render('Admin/DomainDns', [
             'domain'    => $dom,
             'server_ip' => $serverIp,

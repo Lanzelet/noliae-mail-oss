@@ -14,8 +14,14 @@
       <div class="mt-4 mb-1"><span class="text-gray-400"># SPF — autorise ce serveur à envoyer</span></div>
       <div>{{ domain.name }}. <span class="text-[#FF4D2E]">IN TXT</span> "v=spf1 mx -all"</div>
       <div class="mt-4 mb-1"><span class="text-gray-400"># DKIM — signature des mails sortants</span></div>
-      <div v-if="dkim_pub" class="break-all">mail._domainkey.{{ domain.name }}. <span class="text-[#FF4D2E]">IN TXT</span> "v=DKIM1; k=rsa; p={{ dkim_pub }}"</div>
-      <div v-else class="text-amber-600">⚠ Clé DKIM non générée — lance <code>docker exec noliae-rspamd rspamadm dkim_keygen -s mail -d {{ domain.name }} -k /etc/rspamd/dkim/{{ domain.name }}.key</code></div>
+      <div v-if="dkim_pub" class="break-all">mail._domainkey.{{ domain.name }}. <span class="text-[#FF4D2E]">IN TXT</span> "{{ dkim_pub }}"</div>
+      <div v-else class="text-amber-600">
+        ⚠ Clé DKIM non générée pour {{ domain.name }}. Génère-la avec :<br>
+        <code class="block mt-1 text-[10px] bg-amber-50 dark:bg-amber-950 p-2 rounded">
+        opendkim-genkey -b 2048 -s mail -d {{ domain.name }} -D /etc/opendkim/keys/{{ domain.name }}/
+        </code>
+        puis recharge cette page.
+      </div>
       <div class="mt-4 mb-1"><span class="text-gray-400"># DMARC — politique anti-spoofing</span></div>
       <div>_dmarc.{{ domain.name }}. <span class="text-[#FF4D2E]">IN TXT</span> "v=DMARC1; p=quarantine; rua=mailto:postmaster@{{ domain.name }}"</div>
       <div class="mt-4 mb-1"><span class="text-gray-400"># MTA-STS — chiffrement obligatoire en transit</span></div>
