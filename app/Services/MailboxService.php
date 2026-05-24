@@ -141,9 +141,12 @@ class MailboxService
         }
 
         // 4. Rewrap dans un document propre avec CSP en TOUT PREMIER dans le <head>.
+        // CSP du HTML mail : permet les ressources HTTPS externes (images
+        // tracker, fonts CDN type Google Fonts, CSS inline). Pas de JS.
         $csp = '<meta http-equiv="Content-Security-Policy" '
-            . 'content="default-src \'none\'; img-src \'self\' data:; '
-            . 'style-src \'unsafe-inline\'; font-src data:; base-uri \'none\'">';
+            . 'content="default-src \'none\'; img-src \'self\' data: https:; '
+            . 'style-src \'unsafe-inline\' https:; font-src data: https:; '
+            . 'media-src https:; base-uri \'none\'; form-action \'none\'">';
         return '<!DOCTYPE html><html><head><meta charset="utf-8">' . $csp
              . '<style>body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif}</style>'
              . '</head><body>' . $bodyHtml . '</body></html>';

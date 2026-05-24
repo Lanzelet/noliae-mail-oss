@@ -147,33 +147,38 @@ class AccountController extends Controller
      */
     public function serveAvatar(Request $request, string $hash)
     {
-        $hash = strtolower(preg_replace('/[^a-f0-9]/', '', $hash));
-        if (strlen($hash) === 32) {
-            $row = DB::table('mail_accounts')
-                ->whereRaw('md5(lower(email)) = ?', [$hash])
-                ->whereNotNull('avatar_path')
-                ->select('avatar_path')
-                ->first();
-            if ($row) {
-                $path = storage_path('app/private/' . $row->avatar_path);
-                if (is_readable($path)) {
-                    $mime = match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
-                        'jpg', 'jpeg' => 'image/jpeg',
-                        'png'         => 'image/png',
-                        'webp'        => 'image/webp',
-                        'gif'         => 'image/gif',
-                        default       => 'application/octet-stream',
-                    };
-                    return response()->file($path, [
-                        'Content-Type'  => $mime,
-                        'Cache-Control' => 'public, max-age=86400',
-                    ]);
+        try {
+            $hash = strtolower(preg_replace('/[^a-f0-9]/', '', $hash));
+            if (strlen($hash) === 32) {
+                $row = DB::table('mail_accounts')
+                    ->whereRaw('md5(lower(email)) = ?', [$hash])
+                    ->whereNotNull('avatar_path')
+                    ->select('avatar_path')
+                    ->first();
+                if ($row) {
+                    $path = storage_path('app/private/' . $row->avatar_path);
+                    if (is_readable($path)) {
+                        $mime = match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+                            'jpg', 'jpeg' => 'image/jpeg',
+                            'png'         => 'image/png',
+                            'webp'        => 'image/webp',
+                            'gif'         => 'image/gif',
+                            default       => 'application/octet-stream',
+                        };
+                        return response()->file($path, [
+                            'Content-Type'  => $mime,
+                            'Cache-Control' => 'public, max-age=86400',
+                        ]);
+                    }
                 }
             }
+            // Fallback : SVG initiales (Gravatar-like).
+            $name = (string) $request->query('n', '');
+            $svg  = $this->initialsSvg($name !== '' ? $name : '?', $hash ?: '0');
+        } catch (\Throwable $e) {
+            \Log::warning('serveAvatar fallback: ' . $e->getMessage());
+            $svg = $this->initialsSvg('?', '0');
         }
-        // Fallback : SVG initiales (Gravatar-like).
-        $name = (string) $request->query('n', '');
-        $svg  = $this->initialsSvg($name ?: '?', $hash);
         return response($svg, 200, [
             'Content-Type'  => 'image/svg+xml',
             'Cache-Control' => 'public, max-age=3600',
