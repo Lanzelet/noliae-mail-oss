@@ -1862,10 +1862,18 @@ function isBrand(email) {
 function onLogoLoad(e, email) {
   const d = brandDomain(email);
   if (!d || PERSONAL_DOMAINS.has(d)) return;
-  // DuckDuckGo renvoie parfois une image vide ou 1x1 pour les domaines
-  // sans favicon. On exige naturalWidth >= 16 pour valider.
-  if (e.target.naturalWidth >= 16) verifiedLogos.add(d);
-  else failedLogos.add(d);
+  const w = e.target.naturalWidth;
+  const h = e.target.naturalHeight;
+  // Critères stricts pour "marque vérifiée" :
+  // - taille >= 32px (DuckDuckGo renvoie 16x16 globe pour domaines inconnus)
+  // - ratio carré (les vrais logos sont 1:1, les fallbacks souvent rectangulaires)
+  if (w >= 32 && h >= 32 && Math.abs(w - h) <= 2) {
+    verifiedLogos.add(d);
+  } else {
+    failedLogos.add(d);
+    // Force le fallback avatar puisque ce n'est pas un vrai logo
+    if (w < 32) e.target.src = avatarUrl(null, email) || '';
+  }
 }
 function onLogoError(e, email) {
   const d = brandDomain(email);
