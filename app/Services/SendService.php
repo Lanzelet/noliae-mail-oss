@@ -28,13 +28,14 @@ class SendService
     {
         // HELO/EHLO propre — sinon Symfony Mailer envoie « [127.0.0.1] »
         // (le hostname du conteneur webmail) ce qui ressemble à du spam.
-        // verify_peer=0 : on parle à Postfix via le réseau privé intnet docker,
-        // le cert peut être auto-signé sans LE. Sans ça, Symfony Mailer fait
-        // « certificate verify failed » et la file reste bloquée.
-        // local_domain = HELO envoyé : sans ça Symfony envoie « [127.0.0.1] »
-        // ce qui ressemble à du spam.
+        // auto_tls=false : on désactive STARTTLS opportuniste sur le hop
+        // interne web→postfix (réseau intnet docker, privé). Sinon Symfony
+        // Mailer tente STARTTLS, openssl rejette le cert auto-signé, la
+        // file reste bloquée. Pour internet (postfix→gmail) c'est Postfix
+        // qui gère sa propre stack TLS, pas affecté.
+        // local_domain = HELO envoyé (sans ça Symfony envoie « [127.0.0.1] »).
         $localDomain = config('mail.primary_domain') ?: 'localhost';
-        $dsn = sprintf('smtp://%s:%d?local_domain=%s&verify_peer=0',
+        $dsn = sprintf('smtp://%s:%d?local_domain=%s&auto_tls=false&verify_peer=0',
             config('mail.smtp_host'), config('mail.smtp_port'), $localDomain);
         $mailer = new Mailer(Transport::fromDsn($dsn));
 
