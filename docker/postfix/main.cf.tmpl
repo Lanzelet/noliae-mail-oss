@@ -48,7 +48,16 @@ inet_protocols = ipv4
 virtual_alias_maps = pgsql:/etc/postfix/pgsql/virtual_aliases.cf
 message_size_limit = 52428800
 smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination, check_recipient_access pgsql:/etc/postfix/pgsql/recipient_check.cf
-virtual_transport = lmtp:unix:private/dovecot-lmtp
+# Dovecot tourne dans un container séparé : LMTP via TCP réseau intnet docker
+virtual_transport = lmtp:inet:dovecot:24
+
+# SASL via Dovecot TCP (port 12345). master.cf ajoute submission 587 STARTTLS.
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = inet:dovecot:12345
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_security_options = noanonymous
+smtpd_tls_auth_only = yes
+broken_sasl_auth_clients = yes
 virtual_mailbox_maps = pgsql:/etc/postfix/pgsql/virtual_mailboxes.cf
 virtual_mailbox_domains = pgsql:/etc/postfix/pgsql/virtual_domains.cf
 smtpd_milters = inet:rspamd:11332
