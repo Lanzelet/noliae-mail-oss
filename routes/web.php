@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [AuthController::class, 'landing'])->name('landing');
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::get('/admin/login', [AuthController::class, 'showAdminLogin'])->name('admin.login');
+
+// Logo de l'organisation : public + cacheable (affiché sur les pages login).
+Route::get('/org/logo', [\App\Http\Controllers\OrganizationController::class, 'serveLogo']);
 // Rate-limit : 5 tentatives / minute / IP pour limiter le bruteforce.
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 Route::get('/login/2fa',  [AuthController::class, 'show2fa']);
@@ -100,6 +103,9 @@ Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () 
     Route::middleware('admin')->group(function () {
         Route::get('/org',                          [\App\Http\Controllers\OrganizationController::class, 'settings']);
         Route::post('/org',                         [\App\Http\Controllers\OrganizationController::class, 'updateSettings']);
+        Route::post('/org/logo',                    [\App\Http\Controllers\OrganizationController::class, 'uploadLogo']);
+        Route::delete('/org/logo',                  [\App\Http\Controllers\OrganizationController::class, 'deleteLogo']);
+        Route::post('/org/branding',                [\App\Http\Controllers\OrganizationController::class, 'updateBranding']);
         Route::get('/org/members',                  [\App\Http\Controllers\OrganizationController::class, 'members']);
         Route::post('/org/members',                 [\App\Http\Controllers\OrganizationController::class, 'addMember']);
         Route::patch('/org/members/{id}',           [\App\Http\Controllers\OrganizationController::class, 'updateMemberRole'])->whereNumber('id');

@@ -41,11 +41,98 @@ class OrganizationController extends Controller
                 ->whereIn('domain_id', collect($domains)->pluck('id'))->count(),
         ];
         return Inertia::render('Org/Settings', [
-            'org'     => $ctx['org'],
-            'role'    => $ctx['role'],
-            'domains' => $domains,
-            'stats'   => $stats,
+            'org'        => $ctx['org'],
+            'role'       => $ctx['role'],
+            'domains'    => $domains,
+            'stats'      => $stats,
+            'logo_url'   => $ctx['org']->logo_path
+                ? '/org/logo?v=' . substr(md5((string) $ctx['org']->logo_path), 0, 8)
+                : null,
+            'branding'   => [
+                'footer_label'   => (string) \App\Services\AppSettings::get('login_footer_label', 'github.com/Noliae/noliae-mail-oss'),
+                'footer_url'     => (string) \App\Services\AppSettings::get('login_footer_url', 'https://github.com/Noliae/noliae-mail-oss'),
+                'footer_tagline' => (string) \App\Services\AppSettings::get('login_footer_tagline', 'Messagerie souveraine, open source'),
+            ],
         ]);
+    }
+
+    /** POST /org/logo — upload du logo de l'organisation (owner only). */
+    public function uploadLogo(Request $request)
+    {
+        $ctx = $this->ctx($request);
+        abort_unless($ctx['role'] === 'owner', 403, 'Seul un owner peut changer le logo.');
+        $request->validate([
+            'logo' => 'required|file|image|mimes:png,jpeg,webp,svg|max:1024',
+        ]);
+        $file = $request->file('logo');
+        $mime = (string) $file->getMimeType();
+        $ext = match ($mime) {
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/webp' => 'webp',
+            'image/svg+xml' => 'svg',
+            default => 'png',
+        };
+        $dir = storage_path('app/private/org-logos');
+        if (! is_dir($dir)) @mkdir($dir, 0750, true);
+        $base = 'org-' . $ctx['org']->id;
+        foreach (glob($dir . '/' . $base . '.*') ?: [] as $old) { @unlink($old); }
+        $rel = 'org-logos/' . $base . '.' . $ext;
+        $file->move($dir, $base . '.' . $ext);
+        DB::table('organizations')->where('id', $ctx['org']->id)->update([
+            'logo_path' => $rel, 'updated_at' => now(),
+        ]);
+        \App\Services\AuditLog::record($request, 'org.logo.upload', (string) $ctx['org']->id);
+        return back()->with('success', 'Logo de l\'organisation mis à jour.');
+    }
+
+    public function deleteLogo(Request $request)
+    {
+        $ctx = $this->ctx($request);
+        abort_unless($ctx['role'] === 'owner', 403);
+        if ($ctx['org']->logo_path) {
+            @unlink(storage_path('app/private/' . $ctx['org']->logo_path));
+        }
+        DB::table('organizations')->where('id', $ctx['org']->id)->update([
+            'logo_path' => null, 'updated_at' => now(),
+        ]);
+        return back()->with('success', 'Logo retiré.');
+    }
+
+    /** GET /org/logo — public (affiché sur les pages de login). */
+    public function serveLogo(Request $request)
+    {
+        $org = DB::table('organizations')->whereNotNull('logo_path')->orderBy('id')->first();
+        if (! $org) abort(404);
+        $path = storage_path('app/private/' . $org->logo_path);
+        if (! is_readable($path)) abort(404);
+        $mime = match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png'         => 'image/png',
+            'webp'        => 'image/webp',
+            'svg'         => 'image/svg+xml',
+            default       => 'application/octet-stream',
+        };
+        return response()->file($path, [
+            'Content-Type'  => $mime,
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
+    /** POST /org/branding — l'owner change le footer custom des pages login. */
+    public function updateBranding(Request $request)
+    {
+        $ctx = $this->ctx($request);
+        abort_unless($ctx['role'] === 'owner', 403);
+        $data = $request->validate([
+            'footer_label'   => 'nullable|string|max:80',
+            'footer_url'     => 'nullable|url|max:255',
+            'footer_tagline' => 'nullable|string|max:120',
+        ]);
+        foreach ($data as $k => $v) {
+            \App\Services\AppSettings::set('login_' . $k, (string) ($v ?? ''));
+        }
+        return back()->with('success', 'Personnalisation des pages de connexion enregistrée.');
     }
 
     public function updateSettings(Request $request)

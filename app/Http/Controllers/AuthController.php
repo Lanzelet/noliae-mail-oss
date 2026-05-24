@@ -28,10 +28,29 @@ class AuthController extends Controller
         if ($request->session()->get('mail_user')) {
             return redirect('/webmail');
         }
-        return Inertia::render('Login', [
+        return Inertia::render('Login', array_merge([
             'allowRegister' => AppSettings::bool('allow_registration', false),
             'domain'        => config('mail.primary_domain'),
-        ]);
+        ], $this->loginBranding()));
+    }
+
+    /**
+     * Branding partagé par /login et /admin/login : logo org + footer custom.
+     * Permet à l'administrateur de remplacer le lien Github par ses propres
+     * mentions légales / lien d'aide / etc.
+     */
+    private function loginBranding(): array
+    {
+        $org = \Illuminate\Support\Facades\DB::table('organizations')->first(['id', 'name', 'logo_path']);
+        return [
+            'org_name'           => $org?->name,
+            'org_logo_url'       => $org && $org->logo_path
+                ? '/org/logo?v=' . substr(md5((string) $org->logo_path), 0, 8)
+                : null,
+            'footer_label'       => (string) AppSettings::get('login_footer_label', 'github.com/Noliae/noliae-mail-oss'),
+            'footer_url'         => (string) AppSettings::get('login_footer_url', 'https://github.com/Noliae/noliae-mail-oss'),
+            'footer_tagline'     => (string) AppSettings::get('login_footer_tagline', 'Messagerie souveraine, open source'),
+        ];
     }
 
     public function showLogin(Request $request) { return $this->landing($request); }
@@ -42,10 +61,9 @@ class AuthController extends Controller
         if ($request->session()->get('mail_user')) {
             return redirect('/admin');
         }
-        return Inertia::render('AdminLogin', [
-            'domain'      => config('mail.primary_domain'),
-            'org_name'    => \Illuminate\Support\Facades\DB::table('organizations')->value('name'),
-        ]);
+        return Inertia::render('AdminLogin', array_merge([
+            'domain' => config('mail.primary_domain'),
+        ], $this->loginBranding()));
     }
 
     public function showRegister(Request $request)

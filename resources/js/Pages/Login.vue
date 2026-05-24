@@ -29,6 +29,13 @@
           <span class="font-black text-xl">Noliae Mail</span>
         </div>
 
+        <!-- Logo de l'organisation (uploadé par l'owner) -->
+        <div v-if="org_logo_url" class="mb-6 flex items-center gap-3">
+          <img :src="org_logo_url" :alt="org_name || 'Organisation'"
+               class="max-h-16 max-w-[200px] object-contain"/>
+          <div v-if="org_name" class="text-gray-600 dark:text-gray-300 text-sm font-semibold">{{ org_name }}</div>
+        </div>
+
         <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
           {{ mode === 'register' ? 'Créer un compte' : 'Se connecter' }}
         </h2>
@@ -101,10 +108,10 @@
         </form>
 
         <div class="mt-10 pt-6 border-t border-gray-100 dark:border-zinc-800 text-center">
-          <p class="text-gray-400 text-xs">Messagerie souveraine, open source</p>
-          <a href="https://github.com/Noliae/noliae-mail-oss" target="_blank" rel="noopener"
+          <p v-if="footer_tagline" class="text-gray-400 text-xs">{{ footer_tagline }}</p>
+          <a v-if="footer_label && footer_url" :href="footer_url" target="_blank" rel="noopener"
              class="text-gray-400 text-[11px] hover:text-[#FF4D2E] transition mt-1 inline-block">
-            github.com/Noliae/noliae-mail-oss
+            {{ footer_label }}
           </a>
         </div>
       </div>
@@ -117,9 +124,15 @@ import { ref, reactive, computed } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
-  allowRegister: { type: Boolean, default: true },
-  registerMode:  { type: Boolean, default: false },
-  domain:        { type: String,  default: 'example.com' },
+  allowRegister:  { type: Boolean, default: true },
+  registerMode:   { type: Boolean, default: false },
+  domain:         { type: String,  default: 'example.com' },
+  // Branding personnalisable par l'owner de l'organisation
+  org_name:       { type: String,  default: null },
+  org_logo_url:   { type: String,  default: null },
+  footer_label:   { type: String,  default: '' },
+  footer_url:     { type: String,  default: '' },
+  footer_tagline: { type: String,  default: '' },
 });
 
 const mode = ref(props.registerMode ? 'register' : 'login');

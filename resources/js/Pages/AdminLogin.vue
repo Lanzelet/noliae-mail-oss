@@ -29,6 +29,12 @@
           <span class="font-black text-xl">Admin Center</span>
         </div>
 
+        <div v-if="org_logo_url" class="mb-6 flex items-center gap-3">
+          <img :src="org_logo_url" :alt="org_name || 'Organisation'"
+               class="max-h-16 max-w-[200px] object-contain"/>
+          <div v-if="org_name" class="text-gray-600 dark:text-gray-300 text-sm font-semibold">{{ org_name }}</div>
+        </div>
+
         <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Connexion administrateur</h2>
         <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
           {{ org_name || `Organisation @${domain}` }}
@@ -60,7 +66,11 @@
         </form>
 
         <div class="mt-10 pt-6 border-t border-gray-100 dark:border-zinc-800 text-center">
-          <p class="text-gray-400 text-[11px]">Noliae Mail Admin Center</p>
+          <p v-if="footer_tagline" class="text-gray-400 text-xs">{{ footer_tagline }}</p>
+          <a v-if="footer_label && footer_url" :href="footer_url" target="_blank" rel="noopener"
+             class="text-gray-400 text-[11px] hover:text-[#FF4D2E] transition mt-1 inline-block">
+            {{ footer_label }}
+          </a>
         </div>
       </div>
     </main>
@@ -71,7 +81,12 @@
 import { ref, reactive, computed } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 
-defineProps({ domain: String, org_name: String });
+defineProps({
+  domain: String, org_name: String, org_logo_url: String,
+  footer_label: { type: String, default: '' },
+  footer_url:   { type: String, default: '' },
+  footer_tagline:{ type: String, default: '' },
+});
 
 const form = reactive({ email: '', password: '' });
 const processing = ref(false);
