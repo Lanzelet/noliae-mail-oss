@@ -72,6 +72,11 @@ services:
   # 1bis. SCHEDULER (Laravel artisan schedule:run chaque minute)
   ##########################
   scheduler:
+    # Reuse l'image PHP du service web (meme code, meme deps).
+    # Docker BuildKit deduplique : pas de second build si web a deja ete build.
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
     restart: unless-stopped
     depends_on: { postgres: { condition: service_healthy }, web: { condition: service_started } }
     env_file: [.env]
