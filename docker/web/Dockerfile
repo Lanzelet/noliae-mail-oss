@@ -25,16 +25,23 @@ RUN sed -ri 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-availabl
         > /etc/apache2/conf-available/laravel.conf \
  && a2enconf laravel
 
-# PHP : 50 Mo par envoi mail (largement assez pour pièces jointes).
+# PHP : config perf agressive pour webmail (grosses listes IMAP + body HTML).
 RUN { \
       echo 'upload_max_filesize=50M'; \
       echo 'post_max_size=55M'; \
-      echo 'memory_limit=512M'; \
+      echo 'memory_limit=1024M'; \
       echo 'max_execution_time=120'; \
+      echo 'realpath_cache_size=4096K'; \
+      echo 'realpath_cache_ttl=600'; \
       echo 'opcache.enable=1'; \
-      echo 'opcache.memory_consumption=128'; \
-      echo 'opcache.max_accelerated_files=10000'; \
+      echo 'opcache.enable_cli=1'; \
+      echo 'opcache.memory_consumption=256'; \
+      echo 'opcache.max_accelerated_files=20000'; \
+      echo 'opcache.interned_strings_buffer=32'; \
       echo 'opcache.validate_timestamps=0'; \
+      echo 'opcache.save_comments=1'; \
+      echo 'opcache.jit_buffer_size=128M'; \
+      echo 'opcache.jit=tracing'; \
     } > /usr/local/etc/php/conf.d/mail-oss.ini
 
 # imapsync (script Perl single-file depuis GitHub) pour la migration admin
@@ -82,6 +89,8 @@ RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
  && sed -i 's/:80>/:8080>/' /etc/apache2/sites-enabled/000-default.conf \
  && echo 'ServerName localhost' >> /etc/apache2/apache2.conf \
  && echo 'UseCanonicalName Off' >> /etc/apache2/apache2.conf \
+ && printf '<IfModule mpm_prefork_module>\n  StartServers 8\n  MinSpareServers 8\n  MaxSpareServers 32\n  MaxRequestWorkers 64\n  MaxConnectionsPerChild 1000\n</IfModule>\n' > /etc/apache2/conf-available/mpm-tune.conf \
+ && a2enconf mpm-tune \
  && chown -R www-data:www-data /var/log/apache2 /var/run/apache2 /var/lib/apache2
 
 EXPOSE 8080
