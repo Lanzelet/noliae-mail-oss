@@ -305,6 +305,8 @@ class MailboxService
             $m->move($target);
         }
         $client->disconnect();
+        $this->invalidateFolder($email, $folder);
+        if (isset($target) && is_string($target)) $this->invalidateFolder($email, $target);
     }
 
     /** Trouve (ou crée) le chemin d'un dossier spécial par son rang. */
@@ -349,6 +351,8 @@ class MailboxService
             }
         }
         $client->disconnect();
+        $this->invalidateFolder($email, $folder);
+        if (! empty($trash)) $this->invalidateFolder($email, $trash);
     }
 
     /** Archive un message (dossier Archives, créé au besoin). */
@@ -364,6 +368,8 @@ class MailboxService
             }
         }
         $client->disconnect();
+        $this->invalidateFolder($email, $folder);
+        if (! empty($target)) $this->invalidateFolder($email, $target);
     }
 
     /** Signale un message comme indésirable (dossier Spam). */
@@ -379,6 +385,8 @@ class MailboxService
             }
         }
         $client->disconnect();
+        $this->invalidateFolder($email, $folder);
+        if (! empty($target)) $this->invalidateFolder($email, $target);
     }
 
     /** Marque / démarque un message comme favori (IMAP \Flagged). */
@@ -391,6 +399,7 @@ class MailboxService
             try { $on ? $m->setFlag('Flagged') : $m->unsetFlag('Flagged'); } catch (\Throwable $e) {}
         }
         $client->disconnect();
+        $this->invalidateFolder($email, $folder);
     }
 
     /**
@@ -412,6 +421,7 @@ class MailboxService
             }
         }
         $client->disconnect();
+        $this->invalidateFolder($email, $folder);
     }
 
     /** Marque un message comme lu / non lu. */
@@ -426,6 +436,7 @@ class MailboxService
             } catch (\Throwable $e) {}
         }
         $client->disconnect();
+        $this->invalidateFolder($email, $folder);
     }
 
     /**
@@ -434,6 +445,14 @@ class MailboxService
      */
     public function messages(string $email, string $folder, int $limit = 40, string $search = '', int $page = 1): array
     {
+        // Cache liste 60s : on évite de retaper IMAP à chaque switch de page.
+        // Clé invalidée à chaque mutation (delete, move, setSeen, archive…).
+        $cacheKey = $this->listCacheKey($email, $folder, $limit, $search, $page);
+        try {
+            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            if (is_array($cached)) return $cached;
+        } catch (\Throwable $e) {}
+
         $client = $this->client($email);
         $box = $client->getFolder($folder);
         $total = 0;
@@ -507,11 +526,47 @@ class MailboxService
 
         usort($out, fn ($a, $b) => strcmp((string) ($b['date'] ?? ''), (string) ($a['date'] ?? '')));
 
-        return ['messages' => $out, 'total' => $total];
+        $result = ['messages' => $out, 'total' => $total];
+        try { \Illuminate\Support\Facades\Cache::put($cacheKey, $result, 60); } catch (\Throwable $e) {}
+        return $result;
+    }
+
+    /**
+     * Clé de cache pour la liste de messages d'un dossier (60s).
+     * Inclut un "stamp" par (email, folder) incrémenté à chaque mutation,
+     * ce qui invalide toutes les pages d'un coup sans scan Redis.
+     */
+    private function listCacheKey(string $email, string $folder, int $limit, string $search, int $page): string
+    {
+        $stamp = 0;
+        try { $stamp = (int) \Illuminate\Support\Facades\Cache::get('mb:stamp:' . md5($email . '|' . $folder), 0); } catch (\Throwable $e) {}
+        return 'mb:list:' . md5($email . '|' . $folder . '|' . $stamp . '|' . $limit . '|' . $search . '|' . $page);
+    }
+    /** Clé de cache pour un message individuel (corps complet, 7 jours - immutable). */
+    private function msgCacheKey(string $email, string $folder, int $uid): string
+    {
+        return 'mb:msg:' . md5($email . '|' . $folder . '|' . $uid);
+    }
+    /** Invalide TOUTES les listes d'un dossier (appelé sur chaque mutation). */
+    public function invalidateFolder(string $email, string $folder): void
+    {
+        try {
+            // Pas de scan Redis — on incrémente un "stamp" par (email, folder)
+            // qui fait partie de la clé. Du coup les anciennes clés deviennent
+            // orphelines (TTL 60s les nettoie) et la prochaine lecture rate.
+            \Illuminate\Support\Facades\Cache::increment('mb:stamp:' . md5($email . '|' . $folder));
+        } catch (\Throwable $e) {}
     }
 
     public function message(string $email, string $folder, int $uid): ?array
     {
+        // Corps de mail = immutable -> cache 7 jours
+        $cacheKey = $this->msgCacheKey($email, $folder, $uid);
+        try {
+            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            if (is_array($cached)) return $cached;
+        } catch (\Throwable $e) {}
+
         $client = $this->client($email);
         $box = $client->getFolder($folder);
         $m = $box->query()->getMessageByUid($uid);
@@ -619,6 +674,10 @@ class MailboxService
         } catch (\Throwable $e) {
         }
         $client->disconnect();
+        // Cache 7 jours : corps de mail = immutable côté IMAP
+        try { \Illuminate\Support\Facades\Cache::put($cacheKey, $data, 7 * 86400); } catch (\Throwable $e) {}
+        // Marquer "vu" change la liste -> invalide les pages
+        $this->invalidateFolder($email, $folder);
         return $data;
     }
 
