@@ -328,7 +328,8 @@
             <input type="checkbox" :checked="isSel(m.uid)" @click.stop @change="toggleSel(m.uid)"
                    class="mt-2.5 w-4 h-4 rounded border-gray-300 text-[#FF4D2E] focus:ring-[#FF4D2E]/30 shrink-0 cursor-pointer"/>
             <img class="w-9 h-9 rounded-full shrink-0 object-cover bg-gray-100"
-                 :src="avatarUrl(m.from_hash, m.from || m.from_mail)" alt=""/>
+                 :src="avatarOrLogo(m.from_hash, m.from || m.from_mail, m.from_mail)"
+                 @error="$event.target.src = avatarUrl(m.from_hash, m.from || m.from_mail)" alt=""/>
             <span class="min-w-0 flex-1">
               <span class="flex items-baseline justify-between gap-2">
                 <span :class="['text-sm truncate', m.seen ? 'text-gray-700' : 'font-bold text-gray-900']">
@@ -499,7 +500,8 @@
           <!-- Bloc expéditeur compact + détails dépliables (style Gmail) -->
           <div class="flex items-start gap-3">
             <img class="w-10 h-10 rounded-full shrink-0 object-cover bg-gray-100"
-                 :src="avatarUrl(selected.from_hash, selected.from || selected.from_mail)" alt=""/>
+                 :src="avatarOrLogo(selected.from_hash, selected.from || selected.from_mail, selected.from_mail)"
+                 @error="$event.target.src = avatarUrl(selected.from_hash, selected.from || selected.from_mail)" alt=""/>
             <div class="min-w-0 flex-1 leading-tight">
               <div class="flex items-baseline gap-2 flex-wrap">
                 <span class="text-sm font-bold text-gray-900">{{ selected.from || selected.from_mail }}</span>
@@ -1809,6 +1811,26 @@ function avatarUrl(hash, name) {
   if (!hash) return '';
   const u = ACCOUNT_AVATAR_BASE + hash;
   return name ? u + '?n=' + encodeURIComponent(name) : u;
+}
+// Logo de marque via DuckDuckGo Icon Service (rapide, gratuit, sans clé).
+// Renvoie un favicon haute résolution si la marque existe (Netflix, Amazon, etc).
+// 404 si domaine inconnu -> @error sur l'<img> bascule sur l'avatar par initiales.
+const PERSONAL_DOMAINS = new Set([
+  'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.fr', 'hotmail.com',
+  'hotmail.fr', 'outlook.com', 'outlook.fr', 'live.com', 'live.fr',
+  'icloud.com', 'me.com', 'aol.com', 'free.fr', 'orange.fr', 'sfr.fr',
+  'laposte.net', 'wanadoo.fr', 'proton.me', 'protonmail.com',
+]);
+function brandLogoUrl(email) {
+  const m = String(email || '').toLowerCase().match(/@([a-z0-9.-]+\.[a-z]{2,})$/);
+  if (!m) return '';
+  const domain = m[1];
+  // Domaines persos : pas de logo, on passe direct à l'avatar initiales.
+  if (PERSONAL_DOMAINS.has(domain)) return '';
+  return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+}
+function avatarOrLogo(hash, name, email) {
+  return brandLogoUrl(email) || avatarUrl(hash, name);
 }
 function initials(s) {
   if (!s) return '?';
