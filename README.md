@@ -4,11 +4,8 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](docker-compose.yml)
-[![Instance OSS](https://img.shields.io/badge/instance-oss.noliae.com-FF4D2E.svg)](https://oss.noliae.com)
 
 **Noliae Mail OSS** est la version open-source du webmail [Noliae](https://noliae.com). L'objectif : remplacer Google Workspace / Microsoft 365 par une stack mail complète, contrôlable, qu'on peut installer chez soi en une heure. Tout le code utile (webmail, MTA, IMAP, anti-spam, admin, organisations, carnet, branding) est dans ce repo.
-
-> 🌐 **Instance publique de référence** : https://oss.noliae.com (dev/test du programme open-source)
 
 ---
 
@@ -288,4 +285,4 @@ Bugs critiques / sécu : `security@noliae.com` (cf [SECURITY.md](SECURITY.md)).
 
 Noliae Mail OSS est extrait du webmail propriétaire opéré par [Noliae](https://noliae.com), un écosystème français de services en ligne souverains (mail, search, IA, agenda, drive). La version SaaS hébergée inclut en plus l'IA générative (smart-reply, traduction, résumé, anti-phishing) avec une clé API que tu peux brancher sur cette version OSS via `/admin/settings`.
 
-→ [noliae.com](https://noliae.com) — [oss.noliae.com](https://oss.noliae.com) (instance OSS de référence) — [opensources.noliae.com](https://opensources.noliae.com)
+→ [noliae.com](https://noliae.com) — [opensources.noliae.com](https://opensources.noliae.com)
