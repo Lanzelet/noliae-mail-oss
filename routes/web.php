@@ -39,6 +39,7 @@ Route::get('/webmail/avatar/{hash}', [\App\Http\Controllers\AccountController::c
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
         \Illuminate\Cookie\Middleware\EncryptCookies::class,
         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \App\Http\Middleware\HandleInertiaRequests::class,
     ]);
 
 Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
@@ -96,6 +97,7 @@ Route::get('/webmail/img', [MailController::class, 'img'])
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
         \Illuminate\Cookie\Middleware\EncryptCookies::class,
         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \App\Http\Middleware\HandleInertiaRequests::class,
     ]);
 
 // Annuaire de l'organisation + carnet d'adresses partagé (tous membres).
