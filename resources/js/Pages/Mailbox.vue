@@ -373,17 +373,18 @@
           </div>
         </div>
 
-        <!-- Pagination -->
-        <div v-if="total > 0 && totalPages > 1"
+        <!-- Pagination : visible dès qu'on a une page pleine OU qu'on n'est pas page 1 -->
+        <div v-if="messages.length >= per_page || page > 1"
              class="sticky bottom-0 z-10 flex items-center justify-between gap-2 px-3 py-2 bg-white/95 backdrop-blur border-t border-gray-200">
           <button @click="gotoPage(page - 1)" :disabled="page <= 1"
             class="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1">
             <span>‹</span> Préc
           </button>
           <span class="text-xs text-gray-600 tabular-nums font-medium">
-            {{ pageRangeLabel }} <span class="text-gray-400">· page {{ page }}/{{ totalPages }}</span>
+            <template v-if="total > 0">{{ pageRangeLabel }} <span class="text-gray-400">· page {{ page }}/{{ totalPages }}</span></template>
+            <template v-else>Page {{ page }}</template>
           </span>
-          <button @click="gotoPage(page + 1)" :disabled="page >= totalPages"
+          <button @click="gotoPage(page + 1)" :disabled="total > 0 ? page >= totalPages : messages.length < per_page"
             class="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1">
             Suiv <span>›</span>
           </button>
@@ -3050,7 +3051,9 @@ const pageRangeLabel = computed(() => {
   return `${start}–${end} sur ${t}`;
 });
 function gotoPage(p) {
-  const next = Math.min(totalPages.value, Math.max(1, p));
+  // Si total inconnu (countMessages a échoué) on n'applique pas le cap haut.
+  const cap = props.total > 0 ? totalPages.value : 99999;
+  const next = Math.min(cap, Math.max(1, p));
   if (next === props.page) return;
   router.get('/webmail', {
     folder: props.folder,
