@@ -39,6 +39,8 @@ const tabs = [
   { label: 'Domaines',        href: '/admin/domains' },
   { label: 'Comptes',         href: '/admin/accounts' },
   { label: 'Forwards',        href: '/admin/aliases' },
+  { label: 'Listes',          href: '/admin/lists' },
+  { label: 'Partagées',       href: '/admin/shared' },
   { label: 'Paramètres',      href: '/admin/settings' },
 ];
 const flash = computed(() => usePage().props.flash);

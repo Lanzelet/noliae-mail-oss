@@ -81,6 +81,24 @@ Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->prefix('admin')->g
     Route::post('/aliases',                 [AdminController::class, 'createAlias']);
     Route::patch('/aliases/{id}/toggle',    [AdminController::class, 'toggleAlias'])->whereNumber('id');
     Route::delete('/aliases/{id}',          [AdminController::class, 'deleteAlias'])->whereNumber('id');
+
+    // Mailing lists (listes de diffusion)
+    Route::get('/lists',                              [AdminController::class, 'lists']);
+    Route::post('/lists',                             [AdminController::class, 'createList']);
+    Route::get('/lists/{id}',                         [AdminController::class, 'showList'])->whereNumber('id');
+    Route::post('/lists/{id}/members',                [AdminController::class, 'addListMember'])->whereNumber('id');
+    Route::delete('/lists/{id}/members/{memberId}',   [AdminController::class, 'removeListMember'])->whereNumber('id')->whereNumber('memberId');
+    Route::patch('/lists/{id}/scope',                 [AdminController::class, 'updateListScope'])->whereNumber('id');
+    Route::patch('/lists/{id}/toggle',                [AdminController::class, 'toggleList'])->whereNumber('id');
+    Route::delete('/lists/{id}',                      [AdminController::class, 'deleteList'])->whereNumber('id');
+
+    // Shared mailboxes (boîtes partagées)
+    Route::get('/shared',                             [AdminController::class, 'sharedMailboxes']);
+    Route::post('/shared',                            [AdminController::class, 'createSharedMailbox']);
+    Route::get('/shared/{id}',                        [AdminController::class, 'showSharedMailbox'])->whereNumber('id');
+    Route::post('/shared/{id}/acls',                  [AdminController::class, 'grantSharedAccess'])->whereNumber('id');
+    Route::delete('/shared/{id}/acls/{aclId}',        [AdminController::class, 'revokeSharedAccess'])->whereNumber('id')->whereNumber('aclId');
+    Route::delete('/shared/{id}',                     [AdminController::class, 'deleteSharedMailbox'])->whereNumber('id');
     Route::get('/settings',                 [AdminController::class, 'settings']);
     Route::post('/settings',                [AdminController::class, 'saveSettings']);
 });

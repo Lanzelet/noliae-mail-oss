@@ -36,10 +36,41 @@
       </form>
 
       <div class="flex items-center gap-3 text-sm">
-        <div class="flex items-center gap-2">
-          <img class="w-7 h-7 rounded-full object-cover bg-gray-700"
-               :src="avatarUrl(me_hash, me_name || me)" alt=""/>
-          <span class="hidden sm:inline text-gray-300 truncate max-w-[200px]">{{ me }}</span>
+        <!-- Identity switcher : ma boîte + boîtes partagées auxquelles j'ai accès -->
+        <div class="relative" v-click-outside="() => identityOpen = false">
+          <button @click="identityOpen = !identityOpen"
+                  class="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/10 transition">
+            <img class="w-7 h-7 rounded-full object-cover bg-gray-700"
+                 :src="avatarUrl(currentIdentity.hash, currentIdentity.label)" alt=""/>
+            <span class="hidden sm:inline text-gray-300 truncate max-w-[200px]">{{ currentIdentity.label }}</span>
+            <svg v-if="(shared_mailboxes || []).length > 0" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-gray-400">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div v-if="identityOpen && (shared_mailboxes || []).length" class="absolute right-0 top-full mt-1 w-72 bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-zinc-700 py-2 z-50">
+            <div class="px-3 pb-2 text-[10px] uppercase font-bold tracking-wider text-gray-400">Mes identités</div>
+            <a href="/webmail"
+               :class="['flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-zinc-900 transition', !asSharedId && 'bg-[#FF4D2E]/5']">
+              <img class="w-8 h-8 rounded-full object-cover bg-gray-300" :src="avatarUrl(me_hash, me_name || me)" alt=""/>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{{ me_name || 'Ma boîte' }}</div>
+                <code class="text-[11px] text-gray-500 font-mono truncate block">{{ me }}</code>
+              </div>
+              <span v-if="!asSharedId" class="text-[10px] font-bold text-[#FF4D2E]">●</span>
+            </a>
+            <div class="px-3 pt-3 pb-2 text-[10px] uppercase font-bold tracking-wider text-gray-400">Boîtes partagées</div>
+            <a v-for="s in shared_mailboxes" :key="s.id" :href="`/webmail?as=${s.id}`"
+               :class="['flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-zinc-900 transition', asSharedId == s.id && 'bg-blue-50 dark:bg-blue-950']">
+              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 text-white flex items-center justify-center text-xs font-bold">
+                {{ s.display_name.charAt(0).toUpperCase() }}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{{ s.display_name }}</div>
+                <code class="text-[11px] text-gray-500 font-mono truncate block">{{ s.email }}</code>
+              </div>
+              <span class="text-[10px] uppercase text-blue-600 font-bold">{{ s.role }}</span>
+            </a>
+          </div>
         </div>
         <button @click="darkMode = !darkMode" :title="darkMode ? 'Mode clair' : 'Mode sombre'"
           class="w-8 h-8 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white flex items-center justify-center transition">
@@ -1375,6 +1406,30 @@ import { router, usePage } from '@inertiajs/vue3';
 /** Logout via POST (la route GET a été retirée — CSRF safety). */
 function logout() { router.post('/logout'); }
 
+/** Identity switcher : ma boîte ou une boîte partagée. */
+const identityOpen = ref(false);
+const asSharedId = computed(() => {
+  const url = new URL(window.location.href);
+  const v = url.searchParams.get('as') || (typeof props !== 'undefined' ? props.as_shared_id : null);
+  return v ? parseInt(v) : null;
+});
+const currentIdentity = computed(() => {
+  if (asSharedId.value && props.shared_mailboxes?.length) {
+    const s = props.shared_mailboxes.find(x => x.id === asSharedId.value);
+    if (s) return { label: s.display_name, hash: '' };
+  }
+  return { label: props.me_name || props.me, hash: props.me_hash };
+});
+
+// Petit click-outside global pour fermer le dropdown
+const vClickOutside = {
+  mounted(el, binding) {
+    el._clickOutside = (e) => { if (!el.contains(e.target)) binding.value(); };
+    document.addEventListener('click', el._clickOutside);
+  },
+  unmounted(el) { document.removeEventListener('click', el._clickOutside); },
+};
+
 const props = defineProps({
   me: String,
   me_hash: String,
@@ -1389,6 +1444,8 @@ const props = defineProps({
   search: { type: String, default: '' },
   error: String,
   enable_noliae_ai: { type: Boolean, default: false },
+  shared_mailboxes: { type: Array, default: () => [] }, // boîtes partagées accessibles
+  as_shared_id: { type: Number, default: null },        // id de la boîte partagée actuellement vue
 });
 
 const inputCls = 'w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm '

@@ -23,7 +23,24 @@ class MailController extends Controller
     /** GET /webmail — interface webmail : dossiers + liste + message ouvert. */
     public function index(Request $request)
     {
-        $email  = $request->session()->get('mail_user');
+        $loginEmail = $request->session()->get('mail_user');
+        $email = $loginEmail;
+
+        // Identity switcher : ?as=<shared_mailbox_id> bascule sur une boîte
+        // partagée à laquelle l'utilisateur a un ACL.
+        $asSharedId = (int) $request->query('as', 0);
+        $sharedMailboxes = \Illuminate\Support\Facades\DB::table('shared_mailbox_acls')
+            ->join('shared_mailboxes', 'shared_mailboxes.id', '=', 'shared_mailbox_acls.shared_mailbox_id')
+            ->where('shared_mailbox_acls.user_email', strtolower((string) $loginEmail))
+            ->where('shared_mailboxes.active', true)
+            ->select('shared_mailboxes.id','shared_mailboxes.email','shared_mailboxes.display_name','shared_mailbox_acls.role')
+            ->get()->toArray();
+        $activeShared = null;
+        if ($asSharedId) {
+            $activeShared = collect($sharedMailboxes)->firstWhere('id', $asSharedId);
+            if ($activeShared) $email = $activeShared->email;
+        }
+
         $folder = (string) ($request->query('folder') ?: 'INBOX');
         $uid    = $request->query('uid');
         $search = trim((string) $request->query('q', ''));
@@ -74,6 +91,9 @@ class MailController extends Controller
             // Affichage des fonctions IA dans le webmail UNIQUEMENT si activées
             // côté admin dans /admin/settings (off par défaut).
             'enable_noliae_ai' => \App\Services\AppSettings::bool('enable_noliae_ai', false),
+            // Identity switcher : liste des boîtes partagées accessibles + boîte active
+            'shared_mailboxes' => $sharedMailboxes,
+            'as_shared_id'     => $activeShared?->id,
         ]);
     }
 
