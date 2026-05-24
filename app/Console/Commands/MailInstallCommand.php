@@ -52,17 +52,37 @@ class MailInstallCommand extends Command
             return self::FAILURE;
         }
 
-        // 1. Domaine
+        // 1. Organisation par défaut (id=1) si la table existe (migration 90+)
+        $orgId = null;
+        if (Schema::hasTable('organizations')) {
+            $orgId = DB::table('organizations')->orderBy('id')->value('id');
+            if (! $orgId) {
+                $orgId = DB::table('organizations')->insertGetId([
+                    'name'       => 'Default Organization',
+                    'slug'       => 'default',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $this->info("✓ Organisation créée : Default Organization (id=$orgId)");
+            }
+        }
+
+        // 2. Domaine
         $domainId = DB::table('mail_domains')->where('name', $domain)->value('id');
         if (! $domainId) {
             $domainId = DB::table('mail_domains')->insertGetId([
-                'name'       => $domain,
-                'active'     => true,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'name'            => $domain,
+                'active'          => true,
+                'organization_id' => $orgId,
+                'created_at'      => now(),
+                'updated_at'      => now(),
             ]);
             $this->info("✓ Domaine créé : $domain (id=$domainId)");
         } else {
+            // Backfill : rattache à l'orga si pas déjà fait
+            if ($orgId && ! DB::table('mail_domains')->where('id', $domainId)->value('organization_id')) {
+                DB::table('mail_domains')->where('id', $domainId)->update(['organization_id' => $orgId]);
+            }
             $this->line("• Domaine existe déjà : $domain (id=$domainId)");
         }
 
@@ -121,6 +141,24 @@ class MailInstallCommand extends Command
         }
 
         $this->newLine();
+        // 4. Promotion en owner de l'organisation (idempotent)
+        if ($orgId && Schema::hasTable('organization_members')) {
+            $accId = DB::table('mail_accounts')->where('email', $adminMail)->value('id');
+            if ($accId) {
+                $alreadyOwner = DB::table('organization_members')
+                    ->where('organization_id', $orgId)
+                    ->where('mail_account_id', $accId)
+                    ->where('role', 'owner')->exists();
+                if (! $alreadyOwner) {
+                    DB::table('organization_members')->updateOrInsert(
+                        ['organization_id' => $orgId, 'mail_account_id' => $accId],
+                        ['role' => 'owner', 'created_at' => now(), 'updated_at' => now()]
+                    );
+                    $this->info("✓ $adminMail promu owner de l'organisation");
+                }
+            }
+        }
+
         $this->info("✅ Installation OK. Connecte-toi sur https://$domain/login");
         return self::SUCCESS;
     }

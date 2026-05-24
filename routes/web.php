@@ -84,8 +84,28 @@ Route::get('/webmail/img', [MailController::class, 'img'])
         \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
     ]);
 
-// Admin panel — accès limité au compte ADMIN_EMAIL.
-Route::middleware([\App\Http\Middleware\EnsureMailbox::class, \App\Http\Middleware\EnsureAdmin::class])->prefix('admin')->group(function () {
+// Annuaire de l'organisation + carnet d'adresses partagé (tous membres).
+Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
+    Route::get('/people',         [\App\Http\Controllers\PeopleController::class, 'index']);
+    Route::get('/contacts',       [\App\Http\Controllers\ContactsController::class, 'index']);
+    Route::post('/contacts',      [\App\Http\Controllers\ContactsController::class, 'store']);
+    Route::patch('/contacts/{id}', [\App\Http\Controllers\ContactsController::class, 'update'])->whereNumber('id');
+    Route::delete('/contacts/{id}',[\App\Http\Controllers\ContactsController::class, 'destroy'])->whereNumber('id');
+
+    // Gestion de l'organisation (owner+admin+support en lecture, owner pour writes).
+    Route::middleware('admin')->group(function () {
+        Route::get('/org',                          [\App\Http\Controllers\OrganizationController::class, 'settings']);
+        Route::post('/org',                         [\App\Http\Controllers\OrganizationController::class, 'updateSettings']);
+        Route::get('/org/members',                  [\App\Http\Controllers\OrganizationController::class, 'members']);
+        Route::post('/org/members',                 [\App\Http\Controllers\OrganizationController::class, 'addMember']);
+        Route::patch('/org/members/{id}',           [\App\Http\Controllers\OrganizationController::class, 'updateMemberRole'])->whereNumber('id');
+        Route::delete('/org/members/{id}',          [\App\Http\Controllers\OrganizationController::class, 'removeMember'])->whereNumber('id');
+    });
+});
+
+// Admin panel — accès limité aux rôles owner/admin/support de l'organisation.
+// + 2FA OBLIGATOIRE (middleware force.2fa).
+Route::middleware([\App\Http\Middleware\EnsureMailbox::class, 'admin', 'force.2fa'])->prefix('admin')->group(function () {
     Route::get('/',                         [AdminController::class, 'dashboard']);
     Route::get('/domains',                  [AdminController::class, 'domains']);
     Route::post('/domains',                 [AdminController::class, 'createDomain']);

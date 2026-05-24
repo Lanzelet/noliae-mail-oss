@@ -19,6 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
+        $middleware->alias([
+            'org.role'  => \App\Http\Middleware\EnsureOrgRole::class,
+            'force.2fa' => \App\Http\Middleware\Force2faForAdmins::class,
+            'admin'     => \App\Http\Middleware\EnsureAdmin::class,
+            'mailbox'   => \App\Http\Middleware\EnsureMailbox::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

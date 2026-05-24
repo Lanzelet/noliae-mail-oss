@@ -36,6 +36,8 @@ import { computed } from 'vue';
 defineProps({ title: String, admin_email: String, app_domain: String });
 const tabs = [
   { label: 'Tableau de bord', href: '/admin' },
+  { label: 'Organisation',    href: '/org' },
+  { label: 'Membres & RBAC',  href: '/org/members' },
   { label: 'Domaines',        href: '/admin/domains' },
   { label: 'Comptes',         href: '/admin/accounts' },
   { label: 'Forwards',        href: '/admin/aliases' },
@@ -48,5 +50,10 @@ const tabs = [
   { label: 'Audit',           href: '/admin/audit' },
 ];
 const flash = computed(() => usePage().props.flash);
-function isActive(h) { const u = usePage().url; return h === '/admin' ? u === '/admin' : u.startsWith(h); }
+function isActive(h) {
+  const u = usePage().url;
+  if (h === '/admin') return u === '/admin';
+  if (h === '/org') return u === '/org' || u === '/org/';
+  return u.startsWith(h);
+}
 </script>
