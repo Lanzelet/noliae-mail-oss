@@ -1,19 +1,16 @@
 <template>
   <div class="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-zinc-900">
-    <!-- ── Panneau gauche : logo + badge Admin Center ── -->
+    <!-- ── Panneau gauche : juste le logo, petit et discret ── -->
     <aside class="lg:w-1/3 xl:w-2/5 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center relative overflow-hidden min-h-[160px] lg:min-h-screen">
-      <div class="flex flex-col items-center gap-4">
-        <svg viewBox="0 0 140 100" class="w-2/3 max-w-md opacity-90">
-          <rect x="12" y="35" width="10" height="30" rx="5" fill="white"/>
-          <rect x="30" y="25" width="10" height="50" rx="5" fill="white"/>
-          <rect x="48" y="15" width="10" height="70" rx="5" fill="white"/>
-          <rect x="66" y="22" width="10" height="56" rx="5" fill="#FF4D2E"/>
-          <rect x="84" y="20" width="10" height="60" rx="5" fill="white"/>
-          <rect x="102" y="30" width="10" height="40" rx="5" fill="white"/>
-          <rect x="120" y="35" width="10" height="30" rx="5" fill="white"/>
-        </svg>
-        <span class="text-[10px] uppercase tracking-wider bg-[#FF4D2E] text-white px-2.5 py-1 rounded font-bold">Admin Center</span>
-      </div>
+      <svg viewBox="0 0 140 100" class="w-1/3 max-w-[260px] opacity-50">
+        <rect x="12" y="35" width="10" height="30" rx="5" fill="white"/>
+        <rect x="30" y="25" width="10" height="50" rx="5" fill="white"/>
+        <rect x="48" y="15" width="10" height="70" rx="5" fill="white"/>
+        <rect x="66" y="22" width="10" height="56" rx="5" fill="#FF4D2E"/>
+        <rect x="84" y="20" width="10" height="60" rx="5" fill="white"/>
+        <rect x="102" y="30" width="10" height="40" rx="5" fill="white"/>
+        <rect x="120" y="35" width="10" height="30" rx="5" fill="white"/>
+      </svg>
     </aside>
 
     <!-- ── Panneau droit : formulaire ── -->

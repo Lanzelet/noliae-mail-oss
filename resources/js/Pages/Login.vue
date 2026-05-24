@@ -2,7 +2,7 @@
   <div class="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-zinc-900">
     <!-- ── Panneau de gauche : juste le logo Noliae en watermark ── -->
     <aside class="lg:w-1/3 xl:w-2/5 bg-gradient-to-br from-[#FF4D2E] to-[#cc3a1f] flex items-center justify-center relative overflow-hidden min-h-[160px] lg:min-h-screen">
-      <svg viewBox="0 0 140 100" class="w-2/3 max-w-md opacity-90">
+      <svg viewBox="0 0 140 100" class="w-1/3 max-w-[260px] opacity-50">
         <rect x="12" y="35" width="10" height="30" rx="5" fill="white"/>
         <rect x="30" y="25" width="10" height="50" rx="5" fill="white"/>
         <rect x="48" y="15" width="10" height="70" rx="5" fill="white"/>
