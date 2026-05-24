@@ -69,6 +69,7 @@ class SendService
             }
             $mailer->send($email);
             $this->mailbox->appendSent($from, $email->toString());
+            $this->captureRecipients($from, $to, $opts['cc'] ?? []);
             return;
         }
 
@@ -158,6 +159,54 @@ class SendService
 
         $mailer->send($email);
         $this->mailbox->appendSent($from, $email->toString());
+        $this->captureRecipients($from, $to, $opts['cc'] ?? []);
+    }
+
+    /**
+     * Auto-capture : à chaque envoi réussi, on enregistre les destinataires
+     * dans le carnet PERSONNEL de l'expéditeur (source=auto). Si l'adresse
+     * existe déjà, on bump hit_count + last_sent_at (pour ranking autocomplete).
+     */
+    private function captureRecipients(string $from, array $to, array $cc = []): void
+    {
+        try {
+            $accId = \Illuminate\Support\Facades\DB::table('mail_accounts')
+                ->where('email', strtolower(trim($from)))
+                ->value('id');
+            if (! $accId) return;
+            $emails = array_unique(array_merge((array) $to, (array) $cc));
+            foreach ($emails as $raw) {
+                $e = strtolower(trim((string) $raw));
+                if (! $e || ! filter_var($e, FILTER_VALIDATE_EMAIL)) continue;
+                if ($e === strtolower($from)) continue; // pas soi-même
+                $existing = \Illuminate\Support\Facades\DB::table('personal_contacts')
+                    ->where('mail_account_id', $accId)
+                    ->whereRaw('LOWER(email) = ?', [$e])
+                    ->first(['id', 'hit_count']);
+                if ($existing) {
+                    \Illuminate\Support\Facades\DB::table('personal_contacts')
+                        ->where('id', $existing->id)
+                        ->update([
+                            'hit_count'    => ($existing->hit_count ?? 0) + 1,
+                            'last_sent_at' => now(),
+                            'updated_at'   => now(),
+                        ]);
+                } else {
+                    \Illuminate\Support\Facades\DB::table('personal_contacts')->insert([
+                        'mail_account_id' => $accId,
+                        'email'           => $e,
+                        'source'          => 'auto',
+                        'hit_count'       => 1,
+                        'last_sent_at'    => now(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ne casse pas l'envoi si la capture échoue
+            \Illuminate\Support\Facades\Log::warning('captureRecipients: ' . $e->getMessage());
+        }
     }
 
     /** Bloc HTML « pièces jointes » à coller en bas du mail. */

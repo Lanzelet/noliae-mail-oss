@@ -93,11 +93,16 @@ Route::get('/webmail/img', [MailController::class, 'img'])
 Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
     Route::get('/people',         [\App\Http\Controllers\PeopleController::class, 'index']);
     Route::get('/contacts',       [\App\Http\Controllers\ContactsController::class, 'index']);
-    // Autocomplete style O365 pour le composer webmail
+    // Autocomplete style O365 pour le composer webmail (carnet personnel + orga)
     Route::get('/api/contacts/suggest', [\App\Http\Controllers\ContactsController::class, 'suggest']);
+    // Carnet organisation (owner/admin créent, tous lisent)
     Route::post('/contacts',      [\App\Http\Controllers\ContactsController::class, 'store']);
     Route::patch('/contacts/{id}', [\App\Http\Controllers\ContactsController::class, 'update'])->whereNumber('id');
     Route::delete('/contacts/{id}',[\App\Http\Controllers\ContactsController::class, 'destroy'])->whereNumber('id');
+    // Carnet personnel (privé à chaque user)
+    Route::post('/contacts/personal',         [\App\Http\Controllers\ContactsController::class, 'storePersonal']);
+    Route::patch('/contacts/personal/{id}',   [\App\Http\Controllers\ContactsController::class, 'updatePersonal'])->whereNumber('id');
+    Route::delete('/contacts/personal/{id}',  [\App\Http\Controllers\ContactsController::class, 'destroyPersonal'])->whereNumber('id');
 
     // Gestion de l'organisation (owner+admin+support en lecture, owner pour writes).
     Route::middleware('admin')->group(function () {

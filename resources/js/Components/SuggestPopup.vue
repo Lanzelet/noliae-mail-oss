@@ -14,7 +14,9 @@
         </div>
         <div class="text-xs text-gray-500 font-mono truncate">{{ it.email }}</div>
       </div>
-      <span v-if="it.source === 'member'" class="text-[9px] uppercase font-bold bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 px-1.5 py-0.5 rounded">interne</span>
+      <span v-if="it.source === 'personal'" class="text-[9px] uppercase font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200 px-1.5 py-0.5 rounded">mes contacts</span>
+      <span v-else-if="it.source === 'member'" class="text-[9px] uppercase font-bold bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 px-1.5 py-0.5 rounded">interne</span>
+      <span v-else-if="it.source === 'manual'" class="text-[9px] uppercase font-bold bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200 px-1.5 py-0.5 rounded">orga</span>
     </div>
     <div class="px-3 py-1.5 bg-gray-50 dark:bg-zinc-900 text-[10px] text-gray-400 border-t border-gray-100 dark:border-zinc-700">
       ↑↓ naviguer · Entrée valider · Échap fermer
