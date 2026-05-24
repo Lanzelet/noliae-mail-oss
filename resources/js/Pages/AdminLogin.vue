@@ -29,14 +29,15 @@
           <span class="font-black text-xl">Admin Center</span>
         </div>
 
-        <div v-if="org_logo_url" class="mb-6 flex items-center gap-3">
+        <div v-if="org_logo_url" class="mb-6">
           <img :src="org_logo_url" :alt="org_name || 'Organisation'"
-               class="max-h-16 max-w-[200px] object-contain"/>
-          <div v-if="org_name" class="text-gray-600 dark:text-gray-300 text-sm font-semibold">{{ org_name }}</div>
+               class="max-h-16 max-w-[240px] object-contain"/>
         </div>
 
         <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Connexion administrateur</h2>
-        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
+        <!-- Si un logo est uploadé on n'affiche pas le nom orga en sous-titre
+             (le logo le dit déjà). Sinon on garde le fallback @domain. -->
+        <p v-if="!org_logo_url" class="text-gray-500 dark:text-gray-400 text-sm mt-1">
           {{ org_name || `Organisation @${domain}` }}
         </p>
 

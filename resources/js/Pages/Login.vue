@@ -29,11 +29,11 @@
           <span class="font-black text-xl">Noliae Mail</span>
         </div>
 
-        <!-- Logo de l'organisation (uploadé par l'owner) -->
-        <div v-if="org_logo_url" class="mb-6 flex items-center gap-3">
+        <!-- Logo de l'organisation (uploadé par l'owner) — speak for itself, on
+             ne ré-affiche pas le nom org à côté pour éviter la redondance. -->
+        <div v-if="org_logo_url" class="mb-6">
           <img :src="org_logo_url" :alt="org_name || 'Organisation'"
-               class="max-h-16 max-w-[200px] object-contain"/>
-          <div v-if="org_name" class="text-gray-600 dark:text-gray-300 text-sm font-semibold">{{ org_name }}</div>
+               class="max-h-16 max-w-[240px] object-contain"/>
         </div>
 
         <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
