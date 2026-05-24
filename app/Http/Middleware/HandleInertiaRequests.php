@@ -12,6 +12,11 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
+        // Routes sans session (avatar, img proxy) : on retourne le parent direct
+        // sans toucher à session() qui throw "Session store not set on request".
+        if (! $request->hasSession()) {
+            return parent::share($request);
+        }
         // Contexte org partagé pour TOUS les Inertia render (sidebar admin
         // affiche org_name + user_role sans que chaque controller doive le passer).
         $org_name = null;
