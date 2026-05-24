@@ -408,7 +408,7 @@
             </div>
           </div>
         </div>
-        <article v-else :key="selected.uid" class="reader-in max-w-3xl mx-auto px-4 sm:px-10 py-4 sm:py-8">
+        <article v-else :key="selected.uid" class="reader-in max-w-5xl mx-auto px-4 sm:px-10 py-4 sm:py-8">
           <!-- Mobile back -->
           <button @click="backToList" class="md:hidden flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#FF4D2E] mb-3 -ml-1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" :d="iconPath('back')"/></svg>
@@ -685,7 +685,7 @@
           <pre v-else-if="aiTranslated"
                class="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed p-3 rounded-xl bg-violet-50/30 border border-violet-200"
                style="font-family:inherit">{{ aiTranslated }}</pre>
-          <iframe v-else-if="selected.html" :srcdoc="selected.html" sandbox=""
+          <iframe v-else-if="selected.html" :srcdoc="selected.html" sandbox="allow-same-origin allow-popups"
                   @load="autosizeIframe"
                   class="w-full bg-white rounded-lg" style="border:0;height:120px;transition:height .2s ease"></iframe>
           <pre v-else class="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed" style="font-family:inherit">{{ selected.text || '(message vide)' }}</pre>
