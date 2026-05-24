@@ -327,9 +327,15 @@
             @click="openMessage(m.uid)">
             <input type="checkbox" :checked="isSel(m.uid)" @click.stop @change="toggleSel(m.uid)"
                    class="mt-2.5 w-4 h-4 rounded border-gray-300 text-[#FF4D2E] focus:ring-[#FF4D2E]/30 shrink-0 cursor-pointer"/>
-            <img class="w-9 h-9 rounded-full shrink-0 object-cover bg-gray-100"
-                 :src="avatarOrLogo(m.from_hash, m.from || m.from_mail, m.from_mail)"
-                 @error="$event.target.src = avatarUrl(m.from_hash, m.from || m.from_mail)" alt=""/>
+            <div class="relative shrink-0">
+              <img class="w-9 h-9 rounded-full object-cover bg-gray-100"
+                   :src="avatarOrLogo(m.from_hash, m.from || m.from_mail, m.from_mail)"
+                   @error="onLogoError($event, m.from_mail)" alt=""/>
+              <span v-if="isBrand(m.from_mail)" title="Marque vérifiée"
+                    class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-sky-500 border-2 border-white flex items-center justify-center">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </span>
+            </div>
             <span class="min-w-0 flex-1">
               <span class="flex items-baseline justify-between gap-2">
                 <span :class="['text-sm truncate', m.seen ? 'text-gray-700' : 'font-bold text-gray-900']">
@@ -499,9 +505,15 @@
           </div>
           <!-- Bloc expéditeur compact + détails dépliables (style Gmail) -->
           <div class="flex items-start gap-3">
-            <img class="w-10 h-10 rounded-full shrink-0 object-cover bg-gray-100"
-                 :src="avatarOrLogo(selected.from_hash, selected.from || selected.from_mail, selected.from_mail)"
-                 @error="$event.target.src = avatarUrl(selected.from_hash, selected.from || selected.from_mail)" alt=""/>
+            <div class="relative shrink-0">
+              <img class="w-10 h-10 rounded-full object-cover bg-gray-100"
+                   :src="avatarOrLogo(selected.from_hash, selected.from || selected.from_mail, selected.from_mail)"
+                   @error="onLogoError($event, selected.from_mail)" alt=""/>
+              <span v-if="isBrand(selected.from_mail)" title="Marque vérifiée"
+                    class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-sky-500 border-2 border-white flex items-center justify-center">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </span>
+            </div>
             <div class="min-w-0 flex-1 leading-tight">
               <div class="flex items-baseline gap-2 flex-wrap">
                 <span class="text-sm font-bold text-gray-900">{{ selected.from || selected.from_mail }}</span>
@@ -1467,7 +1479,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import SuggestPopup from '../Components/SuggestPopup.vue';
 
@@ -1831,6 +1843,23 @@ function brandLogoUrl(email) {
 }
 function avatarOrLogo(hash, name, email) {
   return brandLogoUrl(email) || avatarUrl(hash, name);
+}
+// Track des domaines pour lesquels le favicon a échoué (pas de logo réel).
+// Sert à n'afficher la coche "vérifié" que quand on a un vrai logo.
+const failedLogos = reactive(new Set());
+function brandDomain(email) {
+  const m = String(email || '').toLowerCase().match(/@([a-z0-9.-]+\.[a-z]{2,})$/);
+  return m ? m[1] : '';
+}
+function isBrand(email) {
+  const d = brandDomain(email);
+  return !!d && !PERSONAL_DOMAINS.has(d) && !failedLogos.has(d);
+}
+function onLogoError(e, email) {
+  const d = brandDomain(email);
+  if (d) failedLogos.add(d);
+  // Fallback vers l'avatar initiales
+  e.target.src = avatarUrl(null, email) || '';
 }
 function initials(s) {
   if (!s) return '?';
