@@ -674,9 +674,16 @@ class MailboxService
         // Le quota TOTAL est lu en direct depuis la DB pour refléter
         // immédiatement les changements admin (sinon Dovecot cache via
         // maildirsize jusqu'au prochain LOGIN IMAP).
-        $row = \Illuminate\Support\Facades\DB::table('mail_accounts')
-            ->where('email', strtolower(trim($email)))
-            ->value('quota_bytes');
+        // Fallback config si la DB n'a pas la table (déploiement où mail_accounts
+        // vit dans un autre service / DB séparée).
+        $row = null;
+        try {
+            $row = \Illuminate\Support\Facades\DB::table('mail_accounts')
+                ->where('email', strtolower(trim($email)))
+                ->value('quota_bytes');
+        } catch (\Throwable $e) {
+            // Pas de table mail_accounts dans la DB Laravel : on retombe sur env.
+        }
         $limit = (int) ($row ?? config('mail.quota_bytes'));
 
         $used = \Illuminate\Support\Facades\Cache::remember(
