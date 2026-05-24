@@ -1833,13 +1833,22 @@ const PERSONAL_DOMAINS = new Set([
   'icloud.com', 'me.com', 'aol.com', 'free.fr', 'orange.fr', 'sfr.fr',
   'laposte.net', 'wanadoo.fr', 'proton.me', 'protonmail.com',
 ]);
+// Extrait le domaine "racine" (gardable pour favicon) : sub.domain.tld -> domain.tld
+function rootDomainOf(d) {
+  const parts = String(d || '').toLowerCase().split('.');
+  if (parts.length <= 2) return d;
+  // ccTLD à 2 segments : .co.uk, .com.au, .gouv.fr… on garde 3 parts
+  const lastTwo = parts.slice(-2).join('.');
+  const TWO_PART_TLD = new Set(['co.uk','com.au','co.jp','com.br','co.nz','gouv.fr','asso.fr','com.sg','co.kr']);
+  return TWO_PART_TLD.has(lastTwo) ? parts.slice(-3).join('.') : parts.slice(-2).join('.');
+}
 function brandLogoUrl(email) {
   const m = String(email || '').toLowerCase().match(/@([a-z0-9.-]+\.[a-z]{2,})$/);
   if (!m) return '';
   const domain = m[1];
-  // Domaines persos : pas de logo, on passe direct à l'avatar initiales.
   if (PERSONAL_DOMAINS.has(domain)) return '';
-  return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+  // On essaie direct le domaine racine (DDG indexe rarement les sous-domaines).
+  return `https://icons.duckduckgo.com/ip3/${rootDomainOf(domain)}.ico`;
 }
 function avatarOrLogo(hash, name, email) {
   return brandLogoUrl(email) || avatarUrl(hash, name);
