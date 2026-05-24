@@ -1864,7 +1864,8 @@ const VERIFIED_BRANDS = [
   'uber.', 'deliveroo.', 'ubereats.', 'doctolib.',
   'edf.', 'engie.', 'totalenergies.', 'enedis.',
   'impots.gouv.fr', 'service-public.', 'ameli.', 'caf.', 'pole-emploi.', 'urssaf.',
-  'noliae.',
+  'noliae.com', 'noliae.net', 'noliae.fr', 'noliae.io',
+  'bellovacorp.com', 'bellovacorp.fr',
 ];
 function brandDomain(email) {
   const m = String(email || '').toLowerCase().match(/@([a-z0-9.-]+\.[a-z]{2,})$/);
