@@ -62,9 +62,20 @@ fi
 
 # ── 2. Prompts utilisateur ──────────────────────────────────────────
 step "2/9 · Configuration"
+RESET_DB=0
 if [ -f .env ]; then
   read -p "$(c_yellow ".env existe déjà. Écraser ? (oui/NON) : ")" overwrite
   [ "$overwrite" = "oui" ] || { echo "Abandon."; exit 0; }
+  # On va regénérer DB_PASSWORD : le volume Postgres existant garde l'ancien
+  # password (PG ne lit POSTGRES_PASSWORD qu'à l'init du data dir vide). On
+  # doit wipe le volume pour éviter "password authentication failed".
+  c_yellow "  ⚠ Le volume Postgres sera wipé (nouveau DB_PASSWORD)\n"
+  read -p "$(c_yellow "Confirmer wipe du volume postgres_data ? (oui/NON) : ")" confirm_wipe
+  if [ "$confirm_wipe" = "oui" ]; then
+    RESET_DB=1
+  else
+    c_red "✗ Impossible de continuer sans wipe (password mismatch garanti). Abandon.\n"; exit 1
+  fi
 fi
 
 read -p "$(c_bold "Domaine mail (ex: mail.example.com) : ")" MAIL_DOMAIN
@@ -178,6 +189,15 @@ c_green "  ✓ 4 images buildées (web · postfix · dovecot · rspamd)\n"
 
 # ── 5. Démarrage de la stack ────────────────────────────────────────
 step "6/9 · Démarrage de la stack"
+
+# Si on régénère .env, wipe le volume Postgres pour qu'il re-init avec le nouveau password
+if [ "$RESET_DB" = "1" ]; then
+  c_yellow "  ⟳ Wipe volume postgres_data (re-init au nouveau password)\n"
+  docker compose down 2>/dev/null || true
+  PG_VOL=$(docker volume ls -q | grep -E 'postgres_data$' | head -1)
+  [ -n "$PG_VOL" ] && docker volume rm "$PG_VOL" >/dev/null 2>&1 || true
+fi
+
 docker compose up -d
 c_green "  ✓ Containers démarrés\n"
 
@@ -188,6 +208,12 @@ for i in $(seq 1 60); do
   fi
   echo -n "."; sleep 2
 done
+
+# Fix permissions storage + storage:link (sinon symlink: Permission denied)
+echo -n "  Fix permissions + storage:link "
+docker compose exec -T -u root web chown -R www-data:www-data /var/www/html/public /var/www/html/storage 2>/dev/null || true
+docker compose exec -T -u root web php artisan storage:link --force 2>/dev/null || true
+c_green "OK\n"
 
 # ── 6. Attente génération clé DKIM par Postfix ──────────────────────
 step "7/9 · Attente génération clé DKIM (opendkim-genkey au boot Postfix)"
