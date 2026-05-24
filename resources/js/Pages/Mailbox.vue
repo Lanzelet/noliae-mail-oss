@@ -330,6 +330,7 @@
             <div class="relative shrink-0">
               <img class="w-9 h-9 rounded-full object-cover bg-gray-100"
                    :src="avatarOrLogo(m.from_hash, m.from || m.from_mail, m.from_mail)"
+                   @load="onLogoLoad($event, m.from_mail)"
                    @error="onLogoError($event, m.from_mail)" alt=""/>
               <span v-if="isBrand(m.from_mail)" title="Marque vérifiée"
                     class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-sky-500 border-2 border-white flex items-center justify-center">
@@ -508,6 +509,7 @@
             <div class="relative shrink-0">
               <img class="w-10 h-10 rounded-full object-cover bg-gray-100"
                    :src="avatarOrLogo(selected.from_hash, selected.from || selected.from_mail, selected.from_mail)"
+                   @load="onLogoLoad($event, selected.from_mail)"
                    @error="onLogoError($event, selected.from_mail)" alt=""/>
               <span v-if="isBrand(selected.from_mail)" title="Marque vérifiée"
                     class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-sky-500 border-2 border-white flex items-center justify-center">
@@ -1844,8 +1846,10 @@ function brandLogoUrl(email) {
 function avatarOrLogo(hash, name, email) {
   return brandLogoUrl(email) || avatarUrl(hash, name);
 }
-// Track des domaines pour lesquels le favicon a échoué (pas de logo réel).
-// Sert à n'afficher la coche "vérifié" que quand on a un vrai logo.
+// Coche bleue : on ne l'affiche QUE quand le favicon a réellement chargé
+// avec succès. DuckDuckGo renvoie souvent une icône générique au lieu d'un
+// 404, donc on check aussi la taille naturelle (un favicon réel >= 16px).
+const verifiedLogos = reactive(new Set());
 const failedLogos = reactive(new Set());
 function brandDomain(email) {
   const m = String(email || '').toLowerCase().match(/@([a-z0-9.-]+\.[a-z]{2,})$/);
@@ -1853,12 +1857,19 @@ function brandDomain(email) {
 }
 function isBrand(email) {
   const d = brandDomain(email);
-  return !!d && !PERSONAL_DOMAINS.has(d) && !failedLogos.has(d);
+  return !!d && verifiedLogos.has(d);
+}
+function onLogoLoad(e, email) {
+  const d = brandDomain(email);
+  if (!d || PERSONAL_DOMAINS.has(d)) return;
+  // DuckDuckGo renvoie parfois une image vide ou 1x1 pour les domaines
+  // sans favicon. On exige naturalWidth >= 16 pour valider.
+  if (e.target.naturalWidth >= 16) verifiedLogos.add(d);
+  else failedLogos.add(d);
 }
 function onLogoError(e, email) {
   const d = brandDomain(email);
   if (d) failedLogos.add(d);
-  // Fallback vers l'avatar initiales
   e.target.src = avatarUrl(null, email) || '';
 }
 function initials(s) {
