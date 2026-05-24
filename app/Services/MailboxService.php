@@ -176,11 +176,33 @@ class MailboxService
         try {
             $a = is_object($attr) && method_exists($attr, 'first') ? $attr->first() : null;
             if ($a) {
-                return ['name' => $a->personal ?: $a->mail, 'mail' => (string) $a->mail];
+                $name = $a->personal ?: $a->mail;
+                return ['name' => $this->mimeDecode((string) $name), 'mail' => (string) $a->mail];
             }
         } catch (\Throwable $e) {
         }
         return ['name' => '', 'mail' => ''];
+    }
+
+    /**
+     * Décode un header MIME RFC 2047 (=?UTF-8?Q?...?= ou =?...?B?...?=).
+     * Tolère les chaînes déjà décodées et les encodages exotiques.
+     */
+    private function mimeDecode(string $s): string
+    {
+        if ($s === '' || strpos($s, '=?') === false) return $s;
+        if (function_exists('iconv_mime_decode')) {
+            $out = @iconv_mime_decode($s, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
+            if ($out !== false && $out !== '') return $out;
+        }
+        if (function_exists('mb_decode_mimeheader')) {
+            $prev = mb_internal_encoding();
+            mb_internal_encoding('UTF-8');
+            $out = @mb_decode_mimeheader($s);
+            mb_internal_encoding($prev);
+            if ($out !== '') return $out;
+        }
+        return $s;
     }
 
     private function flagSeen($m): bool
@@ -464,7 +486,7 @@ class MailboxService
 
             $out[] = [
                 'uid'       => (int) $m->getUid(),
-                'subject'   => (string) $m->getSubject() ?: '(sans objet)',
+                'subject'   => $this->mimeDecode((string) $m->getSubject()) ?: '(sans objet)',
                 'from'      => $from['name'],
                 'from_mail' => $from['mail'],
                 'from_hash' => $from['mail'] ? md5(strtolower(trim($from['mail']))) : '',
@@ -577,7 +599,7 @@ class MailboxService
         $data = [
             'uid'         => (int) $m->getUid(),
             'message_id'  => $messageId,
-            'subject'     => (string) $m->getSubject() ?: '(sans objet)',
+            'subject'     => $this->mimeDecode((string) $m->getSubject()) ?: '(sans objet)',
             'from'        => $from['name'],
             'from_mail'   => $from['mail'],
             'from_hash'   => $from['mail'] ? md5(strtolower(trim($from['mail']))) : '',
