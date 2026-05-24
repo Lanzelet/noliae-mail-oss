@@ -85,7 +85,7 @@ Route::get('/webmail/img', [MailController::class, 'img'])
     ]);
 
 // Admin panel — accès limité au compte ADMIN_EMAIL.
-Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->prefix('admin')->group(function () {
+Route::middleware([\App\Http\Middleware\EnsureMailbox::class, \App\Http\Middleware\EnsureAdmin::class])->prefix('admin')->group(function () {
     Route::get('/',                         [AdminController::class, 'dashboard']);
     Route::get('/domains',                  [AdminController::class, 'domains']);
     Route::post('/domains',                 [AdminController::class, 'createDomain']);

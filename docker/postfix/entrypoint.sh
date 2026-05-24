@@ -84,6 +84,13 @@ fi
 # laissée dans un état incohérent (changement d'UID entre rebuilds).
 postfix set-permissions 2>/dev/null || true
 
+# Copie les fichiers de résolution DNS dans le chroot Postfix (/var/spool/postfix/etc)
+# sinon les daemons en chroot ne peuvent résoudre 'rspamd', 'postgres' etc.
+mkdir -p /var/spool/postfix/etc
+for f in /etc/resolv.conf /etc/services /etc/hosts /etc/host.conf /etc/nsswitch.conf /etc/localtime; do
+  [ -f "$f" ] && cp -f "$f" /var/spool/postfix/etc/ 2>/dev/null || true
+done
+
 # rsyslog (Postfix log via syslog). On enlève le pidfile orphelin sinon
 # rsyslogd refuse de démarrer (« pidfile already exist »).
 rm -f /run/rsyslogd.pid
