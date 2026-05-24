@@ -596,20 +596,20 @@
             <!-- Cards Outlook-style : icône type fichier + nom + taille + actions -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               <div v-for="a in selected.attachments" :key="a.name"
-                   class="group flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-[#FF4D2E]/40 transition">
-                <div :class="['shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white text-xs',
+                   class="group flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-[#FF4D2E]/40 hover:shadow-sm transition">
+                <div :class="['shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white text-[11px] tracking-tight',
                               attColor(a.name)]">
                   {{ attBadge(a.name) }}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <div class="text-sm font-semibold truncate" :title="a.name">{{ a.name }}</div>
-                  <div class="text-[11px] text-gray-500">{{ humanSize(a.size) }}</div>
+                  <div class="text-sm font-semibold truncate text-gray-900 dark:text-gray-100" :title="a.name">{{ a.name }}</div>
+                  <div class="text-[11px] text-gray-600 dark:text-gray-400">{{ humanSize(a.size) }}</div>
                 </div>
                 <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
                   <a v-if="attCanPreview(a.name)" :href="attachmentUrl(a.name, true)" target="_blank"
-                     title="Aperçu" class="w-7 h-7 rounded hover:bg-gray-100 dark:hover:bg-zinc-700 flex items-center justify-center text-gray-500">👁</a>
+                     title="Aperçu" class="w-7 h-7 rounded hover:bg-gray-100 dark:hover:bg-zinc-700 flex items-center justify-center text-gray-600 dark:text-gray-300">👁</a>
                   <a :href="attachmentUrl(a.name, false)" :download="a.name"
-                     title="Télécharger" class="w-7 h-7 rounded hover:bg-gray-100 dark:hover:bg-zinc-700 flex items-center justify-center text-gray-500">⬇</a>
+                     title="Télécharger" class="w-7 h-7 rounded hover:bg-gray-100 dark:hover:bg-zinc-700 flex items-center justify-center text-gray-600 dark:text-gray-300">⬇</a>
                 </div>
               </div>
             </div>

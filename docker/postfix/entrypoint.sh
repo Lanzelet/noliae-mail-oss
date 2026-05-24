@@ -77,11 +77,15 @@ KEY=/etc/letsencrypt/live/${MAIL_DOMAIN}/privkey.pem
 if [ ! -f "$CERT" ]; then
   echo "No LE cert found, generating self-signed (replace for production)..."
   mkdir -p /etc/postfix/tls
-  openssl req -new -x509 -nodes -days 30 -subj "/CN=${MAIL_DOMAIN}" \
+  openssl req -new -x509 -nodes -days 365 -subj "/CN=${MAIL_DOMAIN}" \
     -keyout /etc/postfix/tls/key.pem -out /etc/postfix/tls/cert.pem 2>/dev/null
-  sed -i "s|smtpd_tls_cert_file=.*|smtpd_tls_cert_file=/etc/postfix/tls/cert.pem|" /etc/postfix/main.cf
-  sed -i "s|smtpd_tls_key_file=.*|smtpd_tls_key_file=/etc/postfix/tls/key.pem|" /etc/postfix/main.cf
+  chmod 600 /etc/postfix/tls/key.pem
+  # Regex permissive : Postfix accepte ' = ' OU '=' ; on remplace les 2 formes
+  sed -i -E "s|^[[:space:]]*smtpd_tls_cert_file[[:space:]]*=.*|smtpd_tls_cert_file = /etc/postfix/tls/cert.pem|" /etc/postfix/main.cf
+  sed -i -E "s|^[[:space:]]*smtpd_tls_key_file[[:space:]]*=.*|smtpd_tls_key_file = /etc/postfix/tls/key.pem|"   /etc/postfix/main.cf
 fi
+# Toujours vérifier qu'on a un cert lisible côté serveur (sinon STARTTLS échoue)
+postconf -e "smtpd_tls_loglevel=1"
 
 # Répare les perms de la spool Postfix au cas où un ancien container l'aurait
 # laissée dans un état incohérent (changement d'UID entre rebuilds).
