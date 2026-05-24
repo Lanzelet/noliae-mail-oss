@@ -926,9 +926,11 @@ HTML;
         }
 
         try {
-            // Alias autorisé ? (déclaré dans les settings)
-            $settingsCheck = app(SettingsService::class)->get((string) $email);
-            $aliasesAllowed = array_merge([$email], (array) ($settingsCheck['aliases'] ?? []));
+            // Alias autorisé ? (déclaré dans les settings).
+            // On lit les settings UNE SEULE FOIS (un seul disque I/O) et on
+            // réutilise plus bas pour la clé PGP.
+            $settings = app(SettingsService::class)->get((string) $email);
+            $aliasesAllowed = array_merge([$email], (array) ($settings['aliases'] ?? []));
             $fromAddr = ! empty($data['from_alias']) && in_array($data['from_alias'], $aliasesAllowed, true)
                 ? $data['from_alias'] : $email;
 
@@ -950,7 +952,7 @@ HTML;
             ];
 
             // Réglages utilisateur : auto-attache de la clé PGP publique
-            $settings = app(SettingsService::class)->get((string) $email);
+            // ($settings déjà chargé ci-dessus, on évite un 2e read disque).
             if (! empty($settings['pgp_attach_public']) && ! empty($settings['pgp_public_key'])) {
                 $payload['pgp_public_key']    = $settings['pgp_public_key'];
                 $payload['pgp_attach_public'] = true;

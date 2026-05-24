@@ -80,7 +80,13 @@ if [ ! -f "$CERT" ]; then
   sed -i "s|smtpd_tls_key_file=.*|smtpd_tls_key_file=/etc/postfix/tls/key.pem|" /etc/postfix/main.cf
 fi
 
-# rsyslog (Postfix log via syslog)
+# Répare les perms de la spool Postfix au cas où un ancien container l'aurait
+# laissée dans un état incohérent (changement d'UID entre rebuilds).
+postfix set-permissions 2>/dev/null || true
+
+# rsyslog (Postfix log via syslog). On enlève le pidfile orphelin sinon
+# rsyslogd refuse de démarrer (« pidfile already exist »).
+rm -f /run/rsyslogd.pid
 rsyslogd
 
 # Crée maps Postfix

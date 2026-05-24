@@ -54,7 +54,18 @@ class AccountController extends Controller
             'avatar' => 'required|file|image|mimes:jpeg,png,webp,gif|max:2048',
         ]);
         $file = $request->file('avatar');
-        $ext  = strtolower($file->getClientOriginalExtension() ?: 'png');
+        // On dérive l'extension du MIME RÉEL plutôt que de l'extension client
+        // (qu'on ne contrôle pas : un attaquant pourrait uploader foo.php
+        // si le serveur web était mal configuré). Le mimes() de validate()
+        // a déjà whitelisté le type, mais on durcit le nom de fichier final.
+        $mime = (string) ($file->getMimeType() ?: '');
+        $ext  = match ($mime) {
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/webp' => 'webp',
+            'image/gif'  => 'gif',
+            default      => 'png',
+        };
         $dir  = storage_path('app/private/avatars');
         if (! is_dir($dir)) @mkdir($dir, 0750, true);
         $hash = md5(strtolower($acc->email));
