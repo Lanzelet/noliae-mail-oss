@@ -414,6 +414,18 @@ HTML;
      */
     public function img(Request $request)
     {
+        try {
+            return $this->imgInternal($request);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            \Log::warning('img proxy 502: ' . $e->getMessage());
+            abort(502);
+        }
+    }
+
+    private function imgInternal(Request $request)
+    {
         $url = (string) $request->query('u', '');
         $sig = (string) $request->query('s', '');
         $expected = hash_hmac('sha256', $url, (string) config('app.key'));
@@ -423,7 +435,9 @@ HTML;
 
         // Cache Redis (clé déterministe sur l'URL signée).
         $cacheKey = 'noliae:img:' . substr($sig, 0, 32);
-        $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        try {
+            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        } catch (\Throwable $e) { $cached = null; }
         if ($cached && ! empty($cached['body'])) {
             return response($cached['body'], 200, [
                 'Content-Type'            => $cached['ct'],
@@ -491,10 +505,12 @@ HTML;
         }
 
         // Stockage Redis 7 jours (limite 8 Mo de toute façon)
-        \Illuminate\Support\Facades\Cache::put($cacheKey,
-            ['body' => $body, 'ct' => $ct],
-            now()->addDays(7)
-        );
+        try {
+            \Illuminate\Support\Facades\Cache::put($cacheKey,
+                ['body' => $body, 'ct' => $ct],
+                now()->addDays(7)
+            );
+        } catch (\Throwable $e) { /* cache HS = pas grave */ }
 
         return response($body, 200, [
             'Content-Type'            => $ct,
