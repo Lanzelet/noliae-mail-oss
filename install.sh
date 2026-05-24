@@ -76,6 +76,10 @@ cat > DNS-RECORDS.txt <<EOF
 # A (pointe vers ton serveur)
 ${MAIL_DOMAIN}.            IN A     ${SERVER_IP}
 
+# A pour le endpoint S3 (MinIO) — sert les pièces jointes signées
+# Sans ça, le navigateur ne peut pas télécharger les attachments des mails.
+s3.${MAIL_DOMAIN}.         IN A     ${SERVER_IP}
+
 # MX (route le courrier entrant)
 ${MAIL_DOMAIN}.            IN MX 10 ${MAIL_DOMAIN}.
 

@@ -7,6 +7,8 @@
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 p-5 font-mono text-xs leading-relaxed">
       <div class="mb-3"><span class="text-gray-400"># Pointe le domaine vers ce serveur</span></div>
       <div>{{ domain.name }}. <span class="text-[#FF4D2E]">IN A</span> {{ server_ip }}</div>
+      <div class="mt-4 mb-1"><span class="text-gray-400"># Endpoint S3 (MinIO) pour les pièces jointes signées</span></div>
+      <div>s3.{{ domain.name }}. <span class="text-[#FF4D2E]">IN A</span> {{ server_ip }}</div>
       <div class="mt-4 mb-1"><span class="text-gray-400"># Reçoit le courrier entrant</span></div>
       <div>{{ domain.name }}. <span class="text-[#FF4D2E]">IN MX 10</span> {{ domain.name }}.</div>
       <div class="mt-4 mb-1"><span class="text-gray-400"># SPF — autorise ce serveur à envoyer</span></div>
