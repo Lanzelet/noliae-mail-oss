@@ -4,11 +4,11 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](docker-compose.yml)
-[![Demo](https://img.shields.io/badge/demo-oss.noliae.com-FF4D2E.svg)](https://oss.noliae.com)
+[![Instance OSS](https://img.shields.io/badge/instance-oss.noliae.com-FF4D2E.svg)](https://oss.noliae.com)
 
 **Noliae Mail OSS** est la version open-source du webmail [Noliae](https://noliae.com). L'objectif : remplacer Google Workspace / Microsoft 365 par une stack mail complète, contrôlable, qu'on peut installer chez soi en une heure. Tout le code utile (webmail, MTA, IMAP, anti-spam, admin, organisations, carnet, branding) est dans ce repo.
 
-> 🌐 **Démo en ligne** : https://oss.noliae.com — admin: `admin@oss.noliae.com` (mot de passe régénéré chaque nuit, demande sur la démo)
+> 🌐 **Instance publique de référence** : https://oss.noliae.com (dev/test du programme open-source)
 
 ---
 
@@ -93,7 +93,7 @@ Pre-check avant `verifyPassword`, reset auto sur login OK, hit window 15 min, me
 - 🔒 **TLS automatique** Let's Encrypt (Traefik) + auto-signé fallback pour Postfix
 - 📧 **Submission 587** STARTTLS + SASL Dovecot (mail_accounts.password OU tokens SMTP)
 - 💾 **Backup tar.gz** programmable (pg_dump + Maildirs + bucket MinIO, rétention 30j)
-- 🔄 **Reset nightly démo** (`demo:reset`) optionnel via `DEMO_RESET=true` (service `scheduler` lance `artisan schedule:run` chaque minute)
+- 🔄 **Reset nightly optionnel** (`demo:reset`, opt-in via `DEMO_RESET=true` pour les instances de test public — purge users non-admin chaque nuit). Service `scheduler` lance `artisan schedule:run` chaque minute
 - 🎯 **3 daemons Python policy** embarqués dans le container Postfix : `queue-daemon.py` (admin quarantaine), `list-policy.py` (scope mailing lists), `rate-limit.py` (per-user)
 
 ---
@@ -214,7 +214,7 @@ DKIM signing automatique sur tous les mails sortants via opendkim. SPF + DMARC +
 | `ADMIN_EMAIL` | `admin@example.com` | Compte admin initial promu owner par `mail:install` |
 | `ADMIN_PASSWORD` | (généré si vide) | Password initial admin (affiché dans `docker compose logs web` si vide) |
 | `ALLOW_REGISTRATION` | `false` | Autoriser inscriptions publiques (toggle via admin) |
-| `DEMO_RESET` | `false` | Si `true`, `demo:reset` tourne chaque nuit (purge users non-admin) |
+| `DEMO_RESET` | `false` | Si `true`, `demo:reset` tourne chaque nuit (purge users non-admin) — à activer uniquement pour les instances de test public, NE PAS activer en prod |
 | `MAIL_QUOTA_BYTES` | `5G` | Quota défaut par boîte |
 | `MAIL_IMAP_ENCRYPTION` | vide | "starttls" / "ssl" / vide (plain interne) |
 | `MAIL_TRUSTED_NETS` | `127/8 [::1]/128 172.16/12` | Réseaux autorisés à relayer sans auth |
@@ -288,4 +288,4 @@ Bugs critiques / sécu : `security@noliae.com` (cf [SECURITY.md](SECURITY.md)).
 
 Noliae Mail OSS est extrait du webmail propriétaire opéré par [Noliae](https://noliae.com), un écosystème français de services en ligne souverains (mail, search, IA, agenda, drive). La version SaaS hébergée inclut en plus l'IA générative (smart-reply, traduction, résumé, anti-phishing) avec une clé API que tu peux brancher sur cette version OSS via `/admin/settings`.
 
-→ [noliae.com](https://noliae.com) — [oss.noliae.com](https://oss.noliae.com) (démo live) — [opensources.noliae.com](https://opensources.noliae.com)
+→ [noliae.com](https://noliae.com) — [oss.noliae.com](https://oss.noliae.com) (instance OSS de référence) — [opensources.noliae.com](https://opensources.noliae.com)
