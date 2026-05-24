@@ -671,7 +671,13 @@ class MailboxService
      */
     public function quota(string $email): array
     {
-        $limit = (int) config('mail.quota_bytes');
+        // Le quota TOTAL est lu en direct depuis la DB pour refléter
+        // immédiatement les changements admin (sinon Dovecot cache via
+        // maildirsize jusqu'au prochain LOGIN IMAP).
+        $row = \Illuminate\Support\Facades\DB::table('mail_accounts')
+            ->where('email', strtolower(trim($email)))
+            ->value('quota_bytes');
+        $limit = (int) ($row ?? config('mail.quota_bytes'));
 
         $used = \Illuminate\Support\Facades\Cache::remember(
             'mail_quota_' . md5($email), 120,
