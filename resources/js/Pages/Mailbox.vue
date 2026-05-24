@@ -273,14 +273,6 @@
           </template>
           <template v-else>
             <h2 class="text-sm font-black text-gray-900">{{ meta(currentFolderName).label }}</h2>
-            <span class="ml-1 text-xs text-gray-400 tabular-nums">{{ pageRangeLabel }}</span>
-            <!-- Pagination prev/next -->
-            <div class="ml-2 flex items-center gap-0.5">
-              <button @click="gotoPage(page - 1)" :disabled="page <= 1"
-                class="w-6 h-6 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 text-sm leading-none flex items-center justify-center" title="Page précédente">‹</button>
-              <button @click="gotoPage(page + 1)" :disabled="page >= totalPages"
-                class="w-6 h-6 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500 text-sm leading-none flex items-center justify-center" title="Page suivante">›</button>
-            </div>
             <span class="ml-auto flex items-center gap-1.5 text-[11px] font-medium"
                   :class="polling ? 'text-emerald-600' : 'text-gray-400'">
               <span class="w-2 h-2 rounded-full"
@@ -379,6 +371,22 @@
               </button>
             </div>
           </div>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="total > 0 && totalPages > 1"
+             class="sticky bottom-0 z-10 flex items-center justify-between gap-2 px-3 py-2 bg-white/95 backdrop-blur border-t border-gray-200">
+          <button @click="gotoPage(page - 1)" :disabled="page <= 1"
+            class="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1">
+            <span>‹</span> Préc
+          </button>
+          <span class="text-xs text-gray-600 tabular-nums font-medium">
+            {{ pageRangeLabel }} <span class="text-gray-400">· page {{ page }}/{{ totalPages }}</span>
+          </span>
+          <button @click="gotoPage(page + 1)" :disabled="page >= totalPages"
+            class="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1">
+            Suiv <span>›</span>
+          </button>
         </div>
       </section>
 
