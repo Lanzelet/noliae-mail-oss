@@ -75,9 +75,10 @@
             <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath('dot')"/>
           </svg>
         </button>
-        <a href="/logout" class="px-3 py-1.5 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition">
+        <button @click="logout" type="button"
+                class="px-3 py-1.5 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition">
           Déconnexion
-        </a>
+        </button>
       </div>
     </header>
 
@@ -1370,6 +1371,9 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+
+/** Logout via POST (la route GET a été retirée — CSRF safety). */
+function logout() { router.post('/logout'); }
 
 const props = defineProps({
   me: String,

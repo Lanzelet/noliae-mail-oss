@@ -10,7 +10,7 @@
         <div class="text-xs text-gray-500">
           <span class="font-mono">{{ admin_email }}</span>
           <a href="/webmail" class="ml-4 text-gray-600 hover:text-[#FF4D2E]">← Webmail</a>
-          <a href="/logout" class="ml-3 text-gray-600 hover:text-[#FF4D2E]">Déconnexion</a>
+          <button @click="logout" type="button" class="ml-3 text-gray-600 hover:text-[#FF4D2E]">Déconnexion</button>
         </div>
       </div>
       <nav class="max-w-6xl mx-auto px-5 flex gap-1 text-sm">
@@ -30,7 +30,8 @@
   </div>
 </template>
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
+function logout() { router.post('/logout'); }
 import { computed } from 'vue';
 defineProps({ title: String, admin_email: String, app_domain: String });
 const tabs = [
