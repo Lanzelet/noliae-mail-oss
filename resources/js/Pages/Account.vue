@@ -147,12 +147,15 @@
               <button @click="start2fa" class="px-4 py-2 bg-[#FF4D2E] text-white rounded-lg text-sm font-bold">Activer la 2FA</button>
             </div>
             <div v-if="totp_setup && !totp_activated" class="space-y-3">
-              <p class="text-sm text-gray-700 dark:text-gray-300">Ajoute ce secret dans ton authenticator, puis confirme avec un code à 6 chiffres :</p>
+              <p class="text-sm text-gray-700 dark:text-gray-300">Scanne ce QR code dans ton authenticator (Google Authenticator, Authy, 1Password…), puis confirme avec un code à 6 chiffres :</p>
+              <div v-if="totp_qr" class="flex justify-center">
+                <img :src="totp_qr" alt="QR code 2FA" class="rounded-lg bg-white p-2 border" width="220" height="220"/>
+              </div>
+              <p class="text-xs text-gray-500 text-center">Ou saisis le secret manuellement :</p>
               <div class="flex items-center gap-2">
-                <code class="px-3 py-2 bg-gray-100 dark:bg-zinc-900 rounded-lg font-mono text-xs flex-1">{{ totp_setup.secret }}</code>
+                <code class="px-3 py-2 bg-gray-100 dark:bg-zinc-900 rounded-lg font-mono text-xs flex-1 break-all">{{ totp_setup.secret }}</code>
                 <button @click="copy(totp_setup.secret)" class="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">📋</button>
               </div>
-              <p class="text-[11px] text-gray-500 font-mono break-all">{{ totp_setup.uri }}</p>
               <form @submit.prevent="confirm2fa" class="flex gap-2">
                 <input v-model="confirmCode" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="123456" class="flex-1 px-3 py-2 text-center text-xl font-mono bg-gray-50 dark:bg-zinc-900 border rounded-lg"/>
                 <button type="submit" class="px-4 py-2 bg-[#FF4D2E] text-white rounded-lg text-sm font-bold">Confirmer</button>
@@ -207,9 +210,10 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed } from 'vue';
+import { reactive, ref, computed, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import Field from '../Components/Field.vue';
+import QRCode from 'qrcode';
 
 const props = defineProps({
   email: String, display_name: String, totp_enabled: Boolean,
@@ -234,6 +238,13 @@ const activeLabel = computed(() =>
 const flash = computed(() => usePage().props.flash);
 const errors = computed(() => usePage().props.errors || {});
 const totp_setup = computed(() => usePage().props.flash?.totp_setup);
+const totp_qr = ref('');
+watch(totp_setup, async (s) => {
+  if (s?.uri) {
+    try { totp_qr.value = await QRCode.toDataURL(s.uri, { margin: 1, width: 220 }); }
+    catch (e) { totp_qr.value = ''; }
+  } else { totp_qr.value = ''; }
+}, { immediate: true });
 const totp_activated = computed(() => usePage().props.flash?.totp_activated);
 const new_token = computed(() => usePage().props.flash?.new_token);
 
