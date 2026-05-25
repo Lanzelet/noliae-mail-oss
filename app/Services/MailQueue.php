@@ -35,35 +35,51 @@ class MailQueue
     /** Publie un job dans une file (par défaut la file d'envoi mail). */
     public function publish(array $payload, string $queue = self::QUEUE): void
     {
-        // OSS : si MAIL_DELIVERY_MODE=sync (ou pas de RABBITMQ_URL configure),
-        // on envoie directement via SendService au lieu de mettre en file.
-        // Cas d'usage : stack OSS minimale sans worker RabbitMQ.
-        $mode = strtolower((string) env('MAIL_DELIVERY_MODE', env('RABBITMQ_URL') ? 'queue' : 'sync'));
+        // OSS : si MAIL_DELIVERY_MODE=sync (défaut OSS), pas de RabbitMQ requis
+        // -> envoi direct synchrone via SendService.
+        $mode = strtolower((string) env('MAIL_DELIVERY_MODE', 'sync'));
         if ($mode === 'sync' && $queue === self::QUEUE) {
-            $svc = app(SendService::class);
-            $svc->send(
-                $payload['from']      ?? '',
-                $payload['to']        ?? [],
-                $payload['subject']   ?? '',
-                $payload['html']      ?? '',
-                $payload,
-            );
+            $this->sendSync($payload);
             return;
         }
 
-        $conn = $this->connection();
-        $ch   = $conn->channel();
-        $ch->queue_declare($queue, false, true, false, false);
-        $msg = new AMQPMessage(
-            json_encode($payload, JSON_UNESCAPED_UNICODE),
-            [
-                'delivery_mode' => 2,
-                'content_type'  => 'application/json',
-            ]
+        // Mode 'queue' : tente RabbitMQ, fallback sync si connexion impossible
+        // (évite "Mise en file impossible" si le user a MAIL_DELIVERY_MODE=queue
+        // mais a oublié de déployer noliae-rabbitmq).
+        try {
+            $conn = $this->connection();
+            $ch   = $conn->channel();
+            $ch->queue_declare($queue, false, true, false, false);
+            $msg = new AMQPMessage(
+                json_encode($payload, JSON_UNESCAPED_UNICODE),
+                [
+                    'delivery_mode' => 2,
+                    'content_type'  => 'application/json',
+                ]
+            );
+            $ch->basic_publish($msg, '', $queue);
+            $ch->close();
+            $conn->close();
+        } catch (\Throwable $e) {
+            \Log::warning('MailQueue: RabbitMQ KO, fallback sync send: ' . $e->getMessage());
+            if ($queue === self::QUEUE) {
+                $this->sendSync($payload);
+                return;
+            }
+            throw $e;
+        }
+    }
+
+    private function sendSync(array $payload): void
+    {
+        $svc = app(SendService::class);
+        $svc->send(
+            $payload['from']      ?? '',
+            $payload['to']        ?? [],
+            $payload['subject']   ?? '',
+            $payload['html']      ?? '',
+            $payload,
         );
-        $ch->basic_publish($msg, '', $queue);
-        $ch->close();
-        $conn->close();
     }
 
     /**
