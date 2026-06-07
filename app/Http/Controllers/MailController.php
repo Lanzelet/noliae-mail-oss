@@ -480,25 +480,48 @@ HTML;
         try {
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => false,
+                // Suit les redirections (URLs de tracking email type e3t/Cto renvoient un 3xx
+                // vers l'image réelle — sans ça le proxy renvoyait systématiquement 502).
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 5,
                 CURLOPT_TIMEOUT        => 8,
                 CURLOPT_CONNECTTIMEOUT => 4,
                 CURLOPT_USERAGENT      => 'NoliaeMail-Image-Proxy/1.0',
                 CURLOPT_HEADER         => false,
                 CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
                 CURLOPT_MAXFILESIZE    => 8 * 1024 * 1024,
-                // Pin l'IP validée pour neutraliser le DNS-rebind TOCTOU.
+                // Pin l'IP validée pour neutraliser le DNS-rebind TOCTOU sur la première requête.
                 CURLOPT_RESOLVE        => ["$host:$port:" . $ips[0]],
             ]);
-            $body = curl_exec($ch);
-            $ct   = (string) (curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: 'application/octet-stream');
-            $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $body        = curl_exec($ch);
+            $ct          = (string) (curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: 'application/octet-stream');
+            $code        = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $effectiveUrl = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
         } finally {
             curl_close($ch);
         }
 
         if ($body === false || $code < 200 || $code >= 300) {
             abort(502);
+        }
+
+        // Re-validation SSRF sur l'URL finale après redirections éventuelles.
+        if ($effectiveUrl !== $url) {
+            $ep = parse_url($effectiveUrl);
+            if (! $ep || ! in_array(strtolower($ep['scheme'] ?? ''), ['http', 'https'], true)) {
+                abort(403);
+            }
+            $eHost = strtolower($ep['host'] ?? '');
+            if ($eHost === '' || $eHost === 'localhost') {
+                abort(403);
+            }
+            $eIps = @gethostbynamel($eHost) ?: [];
+            foreach ($eIps as $eIp) {
+                if (filter_var($eIp, FILTER_VALIDATE_IP,
+                        FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+                    abort(403);
+                }
+            }
         }
         if (stripos($ct, 'image/') !== 0) {
             abort(415);
