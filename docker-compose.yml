@@ -239,7 +239,7 @@ services:
   # 8. TRAEFIK (HTTPS via Let's Encrypt)
   ##########################
   traefik:
-    image: traefik:v3.4
+    image: traefik:v3.7
     restart: unless-stopped
     command:
       - --providers.docker=true
