@@ -11,8 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY dovecot.conf                  /etc/dovecot/dovecot.conf
 COPY dovecot-sql.conf.ext          /etc/dovecot/dovecot-sql.conf.ext
 COPY dovecot-sql-tokens.conf.ext   /etc/dovecot/dovecot-sql-tokens.conf.ext
+COPY sieve/before.sieve            /etc/dovecot/sieve/before.sieve
 COPY entrypoint.sh                 /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh \
+ && sievec /etc/dovecot/sieve/before.sieve
 
 EXPOSE 143 993 24
 ENTRYPOINT ["/entrypoint.sh"]
