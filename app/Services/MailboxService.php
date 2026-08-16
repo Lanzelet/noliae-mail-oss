@@ -54,7 +54,10 @@ class MailboxService
             } catch (\Throwable $e) {}
             unset($this->clientPool[$email]);
         }
-        $cm = new ClientManager();
+        // 'fallback_date' évite qu'un en-tête Date: illisible (ex. template
+        // marketing mal substitué type "{smtp_date}") fasse planter tout le
+        // parsing IMAP avec une InvalidMessageDateException.
+        $cm = new ClientManager(['options' => ['fallback_date' => 'now']]);
         $client = $cm->make([
             'host'          => config('mail.imap_host'),
             'port'          => config('mail.imap_port'),
