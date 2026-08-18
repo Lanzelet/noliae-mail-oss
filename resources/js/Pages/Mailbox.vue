@@ -1664,18 +1664,26 @@ const currentFolderName = computed(() => {
   return f ? f.name : props.folder;
 });
 // Dedupe : plusieurs dossiers IMAP peuvent mapper au même label "Spam"
-// (Junk, Spam, INBOX.Spam, Junk E-mail…). On garde le 1er, on garde TOUJOURS
-// le dossier courant + ceux qui n'ont pas de mapping (label = nom brut).
+// (Junk, Spam, INBOX.Spam, Junk E-mail…). On garde un seul dossier par label ;
+// le dossier courant a toujours priorité et remplace un doublon déjà gardé
+// (sinon il s'affichait EN PLUS de l'autre en cliquant dessus).
 const dedupedFolders = computed(() => {
-  const seen = new Set();
-  return props.folders.filter((f) => {
+  const seenAt = new Map(); // label -> index dans `result`
+  const result = [];
+  for (const f of props.folders) {
     const m = FOLDER_META[(f.name || '').toLowerCase()];
-    if (!m) return true;                 // dossier custom : tout garder
-    if (f.path === props.folder) return true; // toujours montrer le courant
-    if (seen.has(m.label)) return false;
-    seen.add(m.label);
-    return true;
-  });
+    if (!m) { result.push(f); continue; } // dossier custom : tout garder
+    if (f.path === props.folder) {
+      if (seenAt.has(m.label)) result.splice(seenAt.get(m.label), 1);
+      seenAt.set(m.label, result.length);
+      result.push(f);
+      continue;
+    }
+    if (seenAt.has(m.label)) continue;
+    seenAt.set(m.label, result.length);
+    result.push(f);
+  }
+  return result;
 });
 const ICONS = {
   inbox:   'M2.25 13.5h3.86a2.25 2.25 0 0 1 2.01 1.24l.26.51a2.25 2.25 0 0 0 2.01 1.25h3.22a2.25 2.25 0 0 0 2.01-1.25l.26-.51a2.25 2.25 0 0 1 2.01-1.24h3.86M3 16.06V18a2.25 2.25 0 0 0 2.25 2.25h13.5A2.25 2.25 0 0 0 21 18v-1.94m-18 0 2.76-7.18a2.25 2.25 0 0 1 2.1-1.44h8.28a2.25 2.25 0 0 1 2.1 1.44L21 16.06',
