@@ -219,12 +219,6 @@
               </div>
             </div>
           </div>
-          <button @click="newFolder"
-            class="w-full flex items-center gap-3 px-3 py-2 mt-1 rounded-xl text-sm
-                   text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition">
-            <span class="w-[18px] text-center text-lg leading-none">+</span>
-            <span>Nouveau dossier</span>
-          </button>
         </nav>
         <div class="px-4 py-3 border-t border-gray-100">
           <p class="text-[11px] text-gray-400">Noliae Mail · messagerie souveraine</p>
@@ -3223,10 +3217,6 @@ function backToList() {
 
 /* ── Gestion des dossiers ── */
 const moveOpen = ref(false);
-function newFolder() {
-  const n = prompt('Nom du nouveau dossier :');
-  if (n && n.trim()) router.post('/webmail/folders', { name: n.trim() }, { preserveScroll: true });
-}
 function delFolder(f) {
   if (confirm('Supprimer le dossier « ' + meta(f.name).label + ' » ? Son contenu sera perdu.'))
     router.delete('/webmail/folders', { data: { path: f.path } });
