@@ -828,6 +828,10 @@ class MailboxService
 
         // Cache long (10 min) : ce calcul scan TOUS les dossiers (lourd sur
         // grosses boîtes 70k+ mails). Le quota évolue peu côté UX.
+        // On récupère uniquement RFC822.SIZE (FETCH en masse, pas de parsing
+        // d'en-tête par message) au lieu de charger chaque message en entier :
+        // sur une boîte de plusieurs milliers de mails, l'ancienne méthode
+        // (query()->get() par dossier) pouvait prendre plus d'une minute.
         $used = \Illuminate\Support\Facades\Cache::remember(
             'mail_quota_' . md5($email), 600,
             function () use ($email) {
@@ -836,10 +840,12 @@ class MailboxService
                     $client = $this->client($email);
                     foreach ($client->getFolders(false) as $folder) {
                         try {
-                            $box = $client->getFolder($folder->path);
-                            $messages = $box->query()->all()->setFetchBody(false)->get();
-                            foreach ($messages as $m) {
-                                $total += (int) $m->getSize();
+                            $client->openFolder($folder->path);
+                            $conn = $client->getConnection();
+                            $uids = $conn->getUid()->validatedData();
+                            if (empty($uids)) continue;
+                            foreach ($conn->sizes($uids)->validatedData() as $size) {
+                                $total += (int) $size;
                             }
                         } catch (\Throwable $e) {
                         }
