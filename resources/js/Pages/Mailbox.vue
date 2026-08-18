@@ -176,7 +176,7 @@
           </button>
         </div>
         <nav class="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
-          <div v-for="f in dedupedFolders" :key="f.path" class="group relative">
+          <div v-for="f in folderTree" :key="f.path" class="group relative">
             <button @click="openFolder(f.path)"
               :class="['w-full flex items-center gap-3 pl-4 pr-3 py-1.5 rounded-r-full text-sm transition',
                        f.path === folder ? 'bg-[#FF4D2E]/15 text-[#FF4D2E] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium']">
@@ -184,7 +184,13 @@
                 <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath(meta(f.name).icon)"/>
               </svg>
               <span class="truncate flex-1 text-left">{{ meta(f.name).label }}</span>
-              <svg v-if="f.locked" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              <svg v-if="f.children?.length" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2.2" class="shrink-0 opacity-50 hover:opacity-90 transition-transform"
+                   :class="inboxChildrenExpanded ? 'rotate-180' : ''"
+                   @click.stop="inboxChildrenExpanded = !inboxChildrenExpanded">
+                <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath('chevronDown')"/>
+              </svg>
+              <svg v-else-if="f.locked" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    stroke-width="2.2" class="shrink-0 opacity-40 group-hover:opacity-60">
                 <path stroke-linecap="round" stroke-linejoin="round"
                       :d="iconPath('lock')"/>
@@ -194,6 +200,24 @@
               class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded leading-none
                      flex items-center justify-center text-gray-400 opacity-0 group-hover:opacity-100
                      hover:bg-rose-100 hover:text-rose-600 transition">×</button>
+
+            <!-- Sous-dossiers INBOX/Xxx imbriqués -->
+            <div v-if="f.children?.length && inboxChildrenExpanded" class="mt-0.5 space-y-0.5">
+              <div v-for="c in f.children" :key="c.path" class="group/child relative">
+                <button @click="openFolder(c.path)"
+                  :class="['w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 rounded-r-full text-[13px] transition',
+                           c.path === folder ? 'bg-[#FF4D2E]/15 text-[#FF4D2E] font-bold' : 'text-gray-500 hover:bg-gray-100 font-medium']">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath('folder')"/>
+                  </svg>
+                  <span class="truncate flex-1 text-left">{{ c.name }}</span>
+                </button>
+                <button @click.stop="delFolder(c)" title="Supprimer le dossier"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded leading-none
+                         flex items-center justify-center text-gray-400 opacity-0 group-hover/child:opacity-100
+                         hover:bg-rose-100 hover:text-rose-600 transition">×</button>
+              </div>
+            </div>
           </div>
           <button @click="newFolder"
             class="w-full flex items-center gap-3 px-3 py-2 mt-1 rounded-xl text-sm
@@ -1684,6 +1708,21 @@ const dedupedFolders = computed(() => {
     result.push(f);
   }
   return result;
+});
+// Arborescence : les dossiers IMAP "INBOX/Xxx" (créés par des règles de tri)
+// s'affichent imbriqués sous INBOX au lieu d'être des entrées top-level.
+const inboxChildrenExpanded = ref(true);
+const folderTree = computed(() => {
+  const top = [];
+  const inboxChildren = [];
+  for (const f of dedupedFolders.value) {
+    if (f.path !== 'INBOX' && f.path.startsWith('INBOX/')) {
+      inboxChildren.push(f);
+    } else {
+      top.push(f);
+    }
+  }
+  return top.map((f) => (f.path === 'INBOX' ? { ...f, children: inboxChildren } : f));
 });
 const ICONS = {
   inbox:   'M2.25 13.5h3.86a2.25 2.25 0 0 1 2.01 1.24l.26.51a2.25 2.25 0 0 0 2.01 1.25h3.22a2.25 2.25 0 0 0 2.01-1.25l.26-.51a2.25 2.25 0 0 1 2.01-1.24h3.86M3 16.06V18a2.25 2.25 0 0 0 2.25 2.25h13.5A2.25 2.25 0 0 0 21 18v-1.94m-18 0 2.76-7.18a2.25 2.25 0 0 1 2.1-1.44h8.28a2.25 2.25 0 0 1 2.1 1.44L21 16.06',
