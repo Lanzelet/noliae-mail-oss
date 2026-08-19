@@ -2025,8 +2025,11 @@ function brandLogoUrl(email) {
   if (!m) return '';
   const domain = m[1];
   if (PERSONAL_DOMAINS.has(domain)) return '';
-  // On essaie direct le domaine racine (DDG indexe rarement les sous-domaines).
-  return `https://icons.duckduckgo.com/ip3/${rootDomainOf(domain)}.ico`;
+  // On passe par notre proxy /webmail/logo plutôt que DuckDuckGo en direct :
+  // DDG renvoie parfois un 404 AVEC un corps image (icône placeholder), donc
+  // <img @error> ne se déclencherait jamais côté client. Le proxy vérifie le
+  // vrai code HTTP et met en cache (positif ET négatif) côté serveur.
+  return `/webmail/logo?domain=${encodeURIComponent(rootDomainOf(domain))}`;
 }
 function avatarOrLogo(hash, name, email) {
   return brandLogoUrl(email) || avatarUrl(hash, name);

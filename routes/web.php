@@ -102,6 +102,18 @@ Route::get('/webmail/img', [MailController::class, 'img'])
         \App\Http\Middleware\HandleInertiaRequests::class,
     ]);
 
+// Proxy favicon DuckDuckGo (avatars marque expéditeur) — hors session pour
+// cache CDN, même logique que /webmail/img.
+Route::get('/webmail/logo', [MailController::class, 'logo'])
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \App\Http\Middleware\HandleInertiaRequests::class,
+    ]);
+
 // Annuaire de l'organisation + carnet d'adresses partagé (tous membres).
 Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
     Route::get('/people',         [\App\Http\Controllers\PeopleController::class, 'index']);

@@ -570,7 +570,73 @@ HTML;
             'CDN-Cache-Control'       => 'public, max-age=2592000',
             'X-Noliae-Cache'          => 'MISS',
         ]);
-    }/**
+    }
+
+    /**
+     * GET /webmail/logo — proxy le favicon DuckDuckGo d'un domaine (avatar
+     * marque de l'expéditeur). DDG renvoie parfois un 404 AVEC un corps
+     * image (icône placeholder générique) : côté client, <img @error> ne se
+     * déclenche donc jamais puisque le navigateur arrive à décoder l'image.
+     * On vérifie ici le vrai code HTTP et on cache le résultat (positif ET
+     * négatif) pour éviter de re-taper DDG à chaque page vue.
+     */
+    public function logo(Request $request)
+    {
+        $domain = strtolower((string) $request->query('domain', ''));
+        if (! preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/', $domain)) {
+            abort(404);
+        }
+
+        $cacheKey = 'noliae:logo:' . $domain;
+        try {
+            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        } catch (\Throwable $e) {
+            $cached = null;
+        }
+        if ($cached === 'missing') {
+            abort(404);
+        }
+        if (is_array($cached) && ! empty($cached['body'])) {
+            return response($cached['body'], 200, [
+                'Content-Type'   => $cached['ct'],
+                'Cache-Control'  => 'public, max-age=2592000, immutable',
+                'X-Noliae-Cache' => 'HIT',
+            ]);
+        }
+
+        $ch = curl_init("https://icons.duckduckgo.com/ip3/{$domain}.ico");
+        try {
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 4,
+                CURLOPT_CONNECTTIMEOUT => 3,
+                CURLOPT_USERAGENT      => 'NoliaeMail-Logo-Proxy/1.0',
+                CURLOPT_PROTOCOLS      => CURLPROTO_HTTPS,
+            ]);
+            $body = curl_exec($ch);
+            $ct   = (string) (curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: 'image/png');
+            $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        } finally {
+            curl_close($ch);
+        }
+
+        // On se fie au vrai code HTTP, jamais au fait que l'image soit décodable.
+        if ($body === false || $code !== 200) {
+            try { \Illuminate\Support\Facades\Cache::put($cacheKey, 'missing', now()->addDays(30)); } catch (\Throwable $e) {}
+            abort(404);
+        }
+
+        try {
+            \Illuminate\Support\Facades\Cache::put($cacheKey, ['body' => $body, 'ct' => $ct], now()->addDays(30));
+        } catch (\Throwable $e) {}
+
+        return response($body, 200, [
+            'Content-Type'  => $ct,
+            'Cache-Control' => 'public, max-age=2592000, immutable',
+        ]);
+    }
+
+    /**
      * POST /webmail/pgp/decrypt — déchiffre un mail PGP côté serveur Noliae.
      * La clé privée est extraite des settings utilisateur, jamais persistée
      * hors du keyring jetable. La passphrase est fournie par requête et
