@@ -279,28 +279,47 @@ class MailboxService
 
     public function folders(string $email): array
     {
-        // Cache 5 min : l'arbre de dossiers change rarement
+        // Cache 5 min : l'arbre de dossiers (structure) change rarement.
         $cacheKey = 'mb:folders:' . md5($email);
-        try {
-            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
-            if (is_array($cached)) return $cached;
-        } catch (\Throwable $e) {}
-
         $client = $this->client($email);
-        $out = [];
-        foreach ($client->getFolders(false) as $folder) {
-            $rank = $this->folderRank($folder->name);
-            $out[] = [
-                'name'   => $folder->name,
-                'path'   => $folder->path,
-                'rank'   => $rank,
-                'locked' => $rank < 10, // INBOX + dossiers spéciaux : non supprimables
-            ];
+        try {
+            $out = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        } catch (\Throwable $e) {
+            $out = null;
         }
+
+        if (! is_array($out)) {
+            $out = [];
+            foreach ($client->getFolders(false) as $folder) {
+                $rank = $this->folderRank($folder->name);
+                $out[] = [
+                    'name'   => $folder->name,
+                    'path'   => $folder->path,
+                    'rank'   => $rank,
+                    'locked' => $rank < 10, // INBOX + dossiers spéciaux : non supprimables
+                ];
+            }
+            // INBOX toujours en tête, puis dossiers spéciaux, puis dossiers libres (alpha).
+            usort($out, fn ($a, $b) => ($a['rank'] <=> $b['rank']) ?: strcasecmp($a['name'], $b['name']));
+            try { \Illuminate\Support\Facades\Cache::put($cacheKey, $out, 300); } catch (\Throwable $e) {}
+        }
+
+        // Non-lus par dossier : jamais mis en cache (change à chaque lecture/
+        // réception), mais bon marché — IMAP STATUS est O(1) côté serveur,
+        // pas un scan des messages comme pour le quota.
+        foreach ($out as &$f) {
+            $f['unread'] = 0;
+            try {
+                $folder = $client->getFolder($f['path']);
+                if ($folder) {
+                    $status = $folder->status();
+                    $f['unread'] = (int) ($status['unseen'] ?? 0);
+                }
+            } catch (\Throwable $e) {}
+        }
+        unset($f);
+
         // pool: déconnexion en fin de requête
-        // INBOX toujours en tête, puis dossiers spéciaux, puis dossiers libres (alpha).
-        usort($out, fn ($a, $b) => ($a['rank'] <=> $b['rank']) ?: strcasecmp($a['name'], $b['name']));
-        try { \Illuminate\Support\Facades\Cache::put($cacheKey, $out, 300); } catch (\Throwable $e) {}
         return $out;
     }
     /** Invalide le cache des dossiers (createFolder, deleteFolder). */

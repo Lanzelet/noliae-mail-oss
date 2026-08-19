@@ -162,7 +162,7 @@
 
       <!-- Dossiers -->
       <aside :class="['bg-white border-r border-gray-200 flex flex-col transform transition-transform',
-                      'fixed lg:static inset-y-0 left-0 top-14 lg:top-0 z-40 w-72 lg:w-64 shrink-0',
+                      'fixed lg:static inset-y-0 left-0 top-14 lg:top-0 z-40 w-72 lg:w-80 shrink-0',
                       drawerOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0']">
         <div class="p-4 pb-2">
           <button @click="openCompose()"
@@ -183,7 +183,10 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="shrink-0">
                 <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath(meta(f.name).icon)"/>
               </svg>
-              <span class="truncate flex-1 text-left">{{ meta(f.name).label }}</span>
+              <span class="flex items-center gap-1 min-w-0 flex-1 text-left">
+                <span class="truncate min-w-0">{{ meta(f.name).label }}</span>
+                <span v-if="f.unread > 0" class="shrink-0 text-[11px] font-bold text-gray-400 tabular-nums">({{ f.unread }})</span>
+              </span>
               <button v-if="f.rank <= 3" @click.stop="openNewSubfolder(f)" title="Nouveau sous-dossier"
                 class="shrink-0 w-5 h-5 rounded flex items-center justify-center text-gray-400 opacity-0
                        group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-700 transition text-base leading-none">+</button>
@@ -213,7 +216,10 @@
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="shrink-0">
                     <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath('folder')"/>
                   </svg>
-                  <span class="truncate flex-1 text-left">{{ c.name }}</span>
+                  <span class="flex items-center gap-1 min-w-0 flex-1 text-left">
+                    <span class="truncate min-w-0">{{ c.name }}</span>
+                    <span v-if="c.unread > 0" class="shrink-0 text-[11px] font-bold text-gray-400 tabular-nums">({{ c.unread }})</span>
+                  </span>
                 </button>
                 <button @click.stop="delFolder(c)" title="Supprimer le dossier"
                   class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded leading-none
