@@ -184,6 +184,9 @@
                 <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath(meta(f.name).icon)"/>
               </svg>
               <span class="truncate flex-1 text-left">{{ meta(f.name).label }}</span>
+              <button v-if="f.rank <= 3" @click.stop="openNewSubfolder(f)" title="Nouveau sous-dossier"
+                class="shrink-0 w-5 h-5 rounded flex items-center justify-center text-gray-400 opacity-0
+                       group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-700 transition text-base leading-none">+</button>
               <svg v-if="f.children?.length" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    stroke-width="2.2" class="shrink-0 opacity-50 hover:opacity-90 transition-transform"
                    :class="inboxChildrenExpanded ? 'rotate-180' : ''"
@@ -1291,6 +1294,56 @@
           <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 text-[11px] text-gray-500 flex items-center justify-between">
             <span>💡 Les raccourcis sont désactivés quand tu écris (input / éditeur).</span>
             <span>Astuce : appuie <kbd class="px-1.5 py-0.5 rounded bg-white border border-gray-200 font-bold">?</kbd> pour rouvrir.</span>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Modale nouveau sous-dossier -->
+    <Transition name="modal">
+      <div v-if="newSubfolderParent" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+           @click.self="newSubfolderParent = null">
+        <div class="compose-panel bg-white w-full sm:max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+            <h2 class="font-bold text-sm">Nouveau sous-dossier dans « {{ meta(newSubfolderParent.name).label }} »</h2>
+            <button @click="newSubfolderParent = null"
+              class="w-7 h-7 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 text-xl leading-none flex items-center justify-center">&times;</button>
+          </div>
+          <form @submit.prevent="submitNewSubfolder" class="p-5 space-y-4">
+            <input v-model="newSubfolderName" type="text" maxlength="64" autofocus placeholder="Nom du dossier"
+                   class="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF4D2E]/30 focus:border-[#FF4D2E]"/>
+            <div class="flex items-center justify-end gap-2">
+              <button type="button" @click="newSubfolderParent = null"
+                class="px-4 py-2 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 transition">Annuler</button>
+              <button type="submit" :disabled="!newSubfolderName.trim()"
+                class="px-4 py-2 rounded-xl text-sm font-bold text-white bg-[#FF4D2E] hover:bg-[#df3c1f] disabled:opacity-40 disabled:cursor-not-allowed transition">Valider</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Modale confirmation suppression dossier -->
+    <Transition name="modal">
+      <div v-if="deleteFolderTarget" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+           @click.self="deleteFolderTarget = null">
+        <div class="compose-panel bg-white w-full sm:max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+            <h2 class="font-bold text-sm">Supprimer le dossier</h2>
+            <button @click="deleteFolderTarget = null"
+              class="w-7 h-7 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 text-xl leading-none flex items-center justify-center">&times;</button>
+          </div>
+          <div class="p-5">
+            <p class="text-sm text-gray-700">
+              Supprimer le dossier « <strong>{{ meta(deleteFolderTarget.name).label }}</strong> » ?
+              Son contenu sera perdu.
+            </p>
+            <div class="flex items-center justify-end gap-2 mt-4">
+              <button type="button" @click="deleteFolderTarget = null"
+                class="px-4 py-2 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 transition">Annuler</button>
+              <button type="button" @click="confirmDeleteFolder"
+                class="px-4 py-2 rounded-xl text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 transition">Supprimer</button>
+            </div>
           </div>
         </div>
       </div>
@@ -3217,9 +3270,31 @@ function backToList() {
 
 /* ── Gestion des dossiers ── */
 const moveOpen = ref(false);
+const deleteFolderTarget = ref(null);
 function delFolder(f) {
-  if (confirm('Supprimer le dossier « ' + meta(f.name).label + ' » ? Son contenu sera perdu.'))
-    router.delete('/webmail/folders', { data: { path: f.path } });
+  deleteFolderTarget.value = f;
+}
+function confirmDeleteFolder() {
+  if (!deleteFolderTarget.value) return;
+  router.delete('/webmail/folders', {
+    data: { path: deleteFolderTarget.value.path },
+    onFinish: () => { deleteFolderTarget.value = null; },
+  });
+}
+// Sous-dossier sous INBOX/Drafts/Sent/Archive (bouton "+" au survol de ces dossiers)
+const newSubfolderParent = ref(null);
+const newSubfolderName = ref('');
+function openNewSubfolder(f) {
+  newSubfolderParent.value = f;
+  newSubfolderName.value = '';
+}
+function submitNewSubfolder() {
+  const name = newSubfolderName.value.trim();
+  if (!name || !newSubfolderParent.value) return;
+  router.post('/webmail/folders', { name, parent: newSubfolderParent.value.path }, {
+    preserveScroll: true,
+    onSuccess: () => { newSubfolderParent.value = null; },
+  });
 }
 function doMove(target) {
   moveOpen.value = false;

@@ -101,15 +101,16 @@ class MailController extends Controller
         ]);
     }
 
-    /** POST /webmail/folders — crée un dossier. */
+    /** POST /webmail/folders — crée un dossier (ou un sous-dossier si `parent` est fourni). */
     public function createFolder(Request $request)
     {
         $email = $request->session()->get('mail_user');
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:64', 'regex:/^[^\/\\\\\x00-\x1f]+$/'],
+            'name'   => ['required', 'string', 'max:64', 'regex:/^[^\/\\\\\x00-\x1f]+$/'],
+            'parent' => ['nullable', 'string', 'max:128'],
         ]);
         try {
-            $this->mail->createFolder($email, trim($data['name']));
+            $this->mail->createFolder($email, trim($data['name']), $data['parent'] ?? null);
             return back()->with('success', 'Dossier créé.');
         } catch (\Throwable $e) {
             return back()->with('error', 'Création impossible : ' . $e->getMessage());

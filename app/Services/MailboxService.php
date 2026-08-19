@@ -310,10 +310,23 @@ class MailboxService
     }
 
     /** Crée un dossier. */
-    public function createFolder(string $email, string $name): void
+    public function createFolder(string $email, string $name, ?string $parent = null): void
     {
         $client = $this->client($email);
-        $client->createFolder($name);
+        $path = $name;
+        if ($parent !== null && $parent !== '') {
+            // Sous-dossiers autorisés uniquement sous INBOX/Drafts/Sent/Archive
+            // (rank <= 3) : pas sous Trash/Junk, ni sous un dossier custom.
+            if ($this->folderRank($parent) > 3) {
+                throw new \RuntimeException('Sous-dossiers non autorisés sous ce dossier.');
+            }
+            $path = $parent . '/' . $name;
+        }
+        // expunge:false — sinon webklex tente un EXPUNGE juste apres le CREATE,
+        // qui echoue avec "No mailbox selected" tant qu'aucun dossier n'a ete
+        // ouvert sur cette connexion (le dossier est cree quand meme, mais
+        // l'exception fait remonter une fausse erreur cote appelant).
+        $client->createFolder($path, false);
         $this->invalidateFoldersList($email);
     }
 
@@ -326,7 +339,13 @@ class MailboxService
         $client = $this->client($email);
         $folder = $client->getFolder($path);
         if ($folder) {
-            $folder->delete();
+            // expunge:false - meme raison que dans createFolder() : sans ca,
+            // webklex tente un EXPUNGE juste apres le DELETE et echoue avec
+            // "No mailbox selected" tant qu'aucun dossier n'a ete ouvert sur
+            // cette connexion. Le dossier est bien supprime quand meme, mais
+            // l'exception fait remonter une fausse erreur cote appelant (et
+            // l'UI affichait l'erreur IMAP brute au lieu du succes).
+            $folder->delete(false);
         }
         $this->invalidateFoldersList($email);
     }
