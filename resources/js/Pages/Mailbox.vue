@@ -3204,7 +3204,7 @@ function openMessage(uid) {
     page: props.page > 1 ? props.page : undefined,
     per_page: props.per_page !== 40 ? props.per_page : undefined,
     q: props.search || undefined,
-  }, { preserveScroll: true });
+  }, { preserveScroll: true, preserveState: true });
 }
 function backToList() {
   router.get('/webmail', {
@@ -3212,7 +3212,7 @@ function backToList() {
     page: props.page > 1 ? props.page : undefined,
     per_page: props.per_page !== 40 ? props.per_page : undefined,
     q: props.search || undefined,
-  }, { preserveScroll: true });
+  }, { preserveScroll: true, preserveState: true });
 }
 
 /* ── Gestion des dossiers ── */
