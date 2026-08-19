@@ -300,6 +300,20 @@
           </template>
           <template v-else>
             <h2 class="text-sm font-black text-gray-900">{{ meta(currentFolderName).label }}</h2>
+            <button v-if="isTrashFolder && messages.length" @click="emptyTrashConfirmOpen = true"
+              class="ml-2 px-2.5 py-1 rounded-full text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition flex items-center gap-1 shrink-0">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="shrink-0">
+                <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath('trash')"/>
+              </svg>
+              Vider la corbeille
+            </button>
+            <button v-if="isSpamFolder && messages.length" @click="emptySpamConfirmOpen = true"
+              class="ml-2 px-2.5 py-1 rounded-full text-[11px] font-bold text-amber-600 hover:bg-amber-50 transition flex items-center gap-1 shrink-0">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="shrink-0">
+                <path stroke-linecap="round" stroke-linejoin="round" :d="iconPath('spam')"/>
+              </svg>
+              Vider le dossier Spam
+            </button>
             <span class="ml-auto flex items-center gap-1.5 text-[11px] font-medium"
                   :class="polling ? 'text-emerald-600' : 'text-gray-400'">
               <span class="w-2 h-2 rounded-full"
@@ -1355,6 +1369,58 @@
       </div>
     </Transition>
 
+    <!-- Modale confirmation vider la corbeille -->
+    <Transition name="modal">
+      <div v-if="emptyTrashConfirmOpen" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+           @click.self="emptyTrashConfirmOpen = false">
+        <div class="compose-panel bg-white w-full sm:max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+            <h2 class="font-bold text-sm">Vider la corbeille</h2>
+            <button @click="emptyTrashConfirmOpen = false"
+              class="w-7 h-7 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 text-xl leading-none flex items-center justify-center">&times;</button>
+          </div>
+          <div class="p-5">
+            <p class="text-sm text-gray-700">
+              Tous les messages de la corbeille vont être <strong>définitivement supprimés</strong>.
+              Cette action est irréversible.
+            </p>
+            <div class="flex items-center justify-end gap-2 mt-4">
+              <button type="button" @click="emptyTrashConfirmOpen = false"
+                class="px-4 py-2 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 transition">Annuler</button>
+              <button type="button" @click="confirmEmptyTrash"
+                class="px-4 py-2 rounded-xl text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 transition">Vider la corbeille</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Modale confirmation vider le dossier Spam -->
+    <Transition name="modal">
+      <div v-if="emptySpamConfirmOpen" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+           @click.self="emptySpamConfirmOpen = false">
+        <div class="compose-panel bg-white w-full sm:max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+            <h2 class="font-bold text-sm">Vider le dossier Spam</h2>
+            <button @click="emptySpamConfirmOpen = false"
+              class="w-7 h-7 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 text-xl leading-none flex items-center justify-center">&times;</button>
+          </div>
+          <div class="p-5">
+            <p class="text-sm text-gray-700">
+              Tous les messages du dossier Spam vont être déplacés vers la <strong>Corbeille</strong>
+              (pas de suppression définitive).
+            </p>
+            <div class="flex items-center justify-end gap-2 mt-4">
+              <button type="button" @click="emptySpamConfirmOpen = false"
+                class="px-4 py-2 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 transition">Annuler</button>
+              <button type="button" @click="confirmEmptySpam"
+                class="px-4 py-2 rounded-xl text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 transition">Vider le dossier Spam</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Modale Paramètres -->
     <Transition name="modal">
       <div v-if="settingsOpen" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -1740,6 +1806,18 @@ const currentFolderName = computed(() => {
   const f = props.folders.find((x) => x.path === props.folder);
   return f ? f.name : props.folder;
 });
+const isTrashFolder = computed(() => meta(currentFolderName.value).icon === 'trash');
+const emptyTrashConfirmOpen = ref(false);
+function confirmEmptyTrash() {
+  emptyTrashConfirmOpen.value = false;
+  router.post('/webmail/trash/empty', {}, { preserveScroll: true });
+}
+const isSpamFolder = computed(() => meta(currentFolderName.value).icon === 'spam');
+const emptySpamConfirmOpen = ref(false);
+function confirmEmptySpam() {
+  emptySpamConfirmOpen.value = false;
+  router.post('/webmail/spam/empty', {}, { preserveScroll: true });
+}
 // Dedupe : plusieurs dossiers IMAP peuvent mapper au même label "Spam"
 // (Junk, Spam, INBOX.Spam, Junk E-mail…). On garde un seul dossier par label ;
 // le dossier courant a toujours priorité et remplace un doublon déjà gardé

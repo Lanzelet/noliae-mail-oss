@@ -429,6 +429,46 @@ class MailboxService
         if (! empty($trash)) $this->invalidateFolder($email, $trash);
     }
 
+    /** Vide définitivement la Corbeille (tous les messages, sans passage par un autre dossier). */
+    public function emptyTrash(string $email): void
+    {
+        $client = $this->client($email);
+        $trash = $this->specialFolderPath($client, 5, ['Trash']);
+        if (! $trash) return;
+        $folder = $client->getFolder($trash);
+        $client->openFolder($trash);
+        $count = (int) ($folder->status()['messages'] ?? 0);
+        if ($count > 0) {
+            // STORE +FLAGS \Deleted en masse (1:N par numéro de séquence, pas
+            // par UID — toujours contigu, contrairement aux UID qui peuvent
+            // avoir des trous) puis EXPUNGE : un aller-retour IMAP au lieu de
+            // charger et supprimer chaque message individuellement.
+            $client->getConnection()->store(['\Deleted'], 1, $count, '+', uid: \Webklex\PHPIMAP\IMAP::ST_MSGN);
+            $client->getConnection()->expunge();
+        }
+        $this->invalidateFolder($email, $trash);
+    }
+
+    /** Vide le dossier Spam : déplace tous les messages vers la Corbeille (pas de suppression définitive). */
+    public function emptyJunk(string $email): void
+    {
+        $client = $this->client($email);
+        $junk = $this->specialFolderPath($client, 4, ['Junk']);
+        if (! $junk) return;
+        $trash = $this->specialFolderPath($client, 5, ['Trash']);
+        if (! $trash) return;
+        $folder = $client->getFolder($junk);
+        $client->openFolder($junk);
+        $count = (int) ($folder->status()['messages'] ?? 0);
+        if ($count > 0) {
+            // MOVE en masse (1:N par numéro de séquence) vers la Corbeille —
+            // un aller-retour IMAP au lieu de déplacer chaque message un par un.
+            $client->getConnection()->moveMessage($trash, 1, $count, \Webklex\PHPIMAP\IMAP::ST_MSGN);
+        }
+        $this->invalidateFolder($email, $junk);
+        $this->invalidateFolder($email, $trash);
+    }
+
     /** Archive un message (dossier Archives, créé au besoin). */
     public function archiveMessage(string $email, string $folder, int $uid): void
     {

@@ -165,6 +165,30 @@ class MailController extends Controller
         }
     }
 
+    /** POST /webmail/trash/empty — vide définitivement la Corbeille. */
+    public function emptyTrash(Request $request)
+    {
+        $email = $request->session()->get('mail_user');
+        try {
+            $this->mail->emptyTrash($email);
+            return redirect('/webmail?folder=Trash')->with('success', 'Corbeille vidée.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Impossible de vider la corbeille : ' . $e->getMessage());
+        }
+    }
+
+    /** POST /webmail/spam/empty — déplace tous les messages du dossier Spam vers la Corbeille. */
+    public function emptySpam(Request $request)
+    {
+        $email = $request->session()->get('mail_user');
+        try {
+            $this->mail->emptyJunk($email);
+            return redirect('/webmail?folder=Junk')->with('success', 'Dossier Spam vidé (messages déplacés vers la Corbeille).');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Impossible de vider le dossier Spam : ' . $e->getMessage());
+        }
+    }
+
     /** POST /webmail/archive — archive un message. */
     public function archive(Request $request)
     {

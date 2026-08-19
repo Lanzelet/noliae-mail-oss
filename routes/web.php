@@ -61,6 +61,8 @@ Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () 
     Route::delete('/webmail/folders', [MailController::class, 'deleteFolder']);
     Route::post('/webmail/move', [MailController::class, 'move']);
     Route::post('/webmail/trash', [MailController::class, 'trash']);
+    Route::post('/webmail/trash/empty', [MailController::class, 'emptyTrash']);
+    Route::post('/webmail/spam/empty', [MailController::class, 'emptySpam']);
     Route::post('/webmail/archive', [MailController::class, 'archive']);
     Route::post('/webmail/spam', [MailController::class, 'spam']);
     Route::post('/webmail/seen', [MailController::class, 'seen']);
