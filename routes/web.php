@@ -42,7 +42,7 @@ Route::get('/webmail/avatar/{hash}', [\App\Http\Controllers\AccountController::c
         \App\Http\Middleware\HandleInertiaRequests::class,
     ]);
 
-Route::middleware(\App\Http\Middleware\EnsureMailbox::class)->group(function () {
+Route::middleware([\App\Http\Middleware\EnsureMailbox::class, \App\Http\Middleware\NoTransformResponse::class])->group(function () {
     // Espace utilisateur : mot de passe, 2FA, tokens SMTP, avatar
     Route::get('/account',                     [\App\Http\Controllers\AccountController::class, 'index']);
     Route::post('/account/profile',            [\App\Http\Controllers\AccountController::class, 'updateProfile']);

@@ -20,6 +20,31 @@ class MailController extends Controller
     {
     }
 
+    /**
+     * Résout la boîte cible d'une action : la boîte partagée demandée via
+     * ?as=<id> (GET) ou as= (POST) si l'utilisateur connecté y a un ACL avec
+     * un rôle suffisant, sinon sa propre boîte. Sans ce garde-fou, toute
+     * action prise depuis une boîte partagée (archiver, supprimer…) retombe
+     * silencieusement sur la boîte personnelle de l'utilisateur au lieu de
+     * la boîte partagée affichée à l'écran.
+     */
+    private function resolveMailbox(Request $request, array $roles = ['read', 'send', 'manage']): string
+    {
+        $loginEmail = (string) $request->session()->get('mail_user');
+        $asSharedId = (int) ($request->input('as') ?? $request->query('as', 0));
+        if ($asSharedId) {
+            $shared = \Illuminate\Support\Facades\DB::table('shared_mailbox_acls')
+                ->join('shared_mailboxes', 'shared_mailboxes.id', '=', 'shared_mailbox_acls.shared_mailbox_id')
+                ->where('shared_mailbox_acls.user_email', strtolower($loginEmail))
+                ->where('shared_mailboxes.id', $asSharedId)
+                ->whereIn('shared_mailbox_acls.role', $roles)
+                ->where('shared_mailboxes.active', true)
+                ->value('shared_mailboxes.email');
+            if ($shared) return (string) $shared;
+        }
+        return $loginEmail;
+    }
+
     /** GET /webmail — interface webmail : dossiers + liste + message ouvert. */
     public function index(Request $request)
     {
@@ -48,14 +73,11 @@ class MailController extends Controller
         $perPage  = max(20, min(200, (int) $request->query('per_page', 40)));
 
         $error = null;
-        $folders = [];
         $messages = [];
         $total = 0;
         $selected = null;
-        $quota = null;
 
         try {
-            $folders  = $this->mail->folders($email);
             $res = $this->mail->messages($email, $folder, $perPage, $search, $page);
             $messages = $res['messages'];
             $total = $res['total'];
@@ -72,7 +94,6 @@ class MailController extends Controller
                     $selected['thread'] = $this->mail->threadOf($email, $folder, $selected['subject'] ?? '');
                 }
             }
-            $quota = $this->mail->quota($email);
         } catch (\Throwable $e) {
             $error = 'Connexion à la boîte mail impossible : ' . $e->getMessage();
         }
@@ -82,7 +103,12 @@ class MailController extends Controller
             'me_hash'   => $email ? md5(strtolower(trim((string) $email))) : '',
             'me_name'   => (string) $request->session()->get('mail_name', ''),
             'settings'  => app(SettingsService::class)->get((string) $email),
-            'folders'   => $folders,
+            // Closures : Inertia ne les exécute que si "folders"/"quota" sont
+            // réellement demandés (chargement complet, ou rechargement partiel
+            // qui les inclut explicitement dans `only`). Évite un aller-retour
+            // IMAP par dossier (STATUS unread) à chaque rafraîchissement
+            // automatique de 15s qui ne demande que les messages.
+            'folders'   => fn () => $this->safeFolders($email),
             'folder'   => $folder,
             'messages' => $messages,
             'total'    => $total,
@@ -90,7 +116,7 @@ class MailController extends Controller
             'per_page' => $perPage,
             'search'   => $search,
             'selected' => $selected,
-            'quota'    => $quota,
+            'quota'    => fn () => $this->safeQuota($email),
             'error'    => $error,
             // Affichage des fonctions IA dans le webmail UNIQUEMENT si activées
             // côté admin dans /admin/settings (off par défaut).
@@ -101,10 +127,28 @@ class MailController extends Controller
         ]);
     }
 
+    private function safeFolders(?string $email): array
+    {
+        try {
+            return $this->mail->folders((string) $email);
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    private function safeQuota(?string $email): ?array
+    {
+        try {
+            return $this->mail->quota((string) $email);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
     /** POST /webmail/folders — crée un dossier (ou un sous-dossier si `parent` est fourni). */
     public function createFolder(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate([
             'name'   => ['required', 'string', 'max:64', 'regex:/^[^\/\\\\\x00-\x1f]+$/'],
             'parent' => ['nullable', 'string', 'max:128'],
@@ -120,7 +164,7 @@ class MailController extends Controller
     /** DELETE /webmail/folders — supprime un dossier libre. */
     public function deleteFolder(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate(['path' => 'required|string|max:128']);
         try {
             $this->mail->deleteFolder($email, $data['path']);
@@ -133,7 +177,7 @@ class MailController extends Controller
     /** POST /webmail/move — déplace un message vers un autre dossier. */
     public function move(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate([
             'folder' => 'required|string|max:128',
             'uid'    => 'required|integer',
@@ -151,7 +195,7 @@ class MailController extends Controller
     /** POST /webmail/trash — supprime un message (Corbeille, ou définitif). */
     public function trash(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate([
             'folder' => 'required|string|max:128',
             'uid'    => 'required|integer',
@@ -168,7 +212,7 @@ class MailController extends Controller
     /** POST /webmail/trash/empty — vide définitivement la Corbeille. */
     public function emptyTrash(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         try {
             $this->mail->emptyTrash($email);
             return redirect('/webmail?folder=Trash')->with('success', 'Corbeille vidée.');
@@ -180,7 +224,7 @@ class MailController extends Controller
     /** POST /webmail/spam/empty — déplace tous les messages du dossier Spam vers la Corbeille. */
     public function emptySpam(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         try {
             $this->mail->emptyJunk($email);
             return redirect('/webmail?folder=Junk')->with('success', 'Dossier Spam vidé (messages déplacés vers la Corbeille).');
@@ -192,7 +236,7 @@ class MailController extends Controller
     /** POST /webmail/archive — archive un message. */
     public function archive(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate([
             'folder' => 'required|string|max:128',
             'uid'    => 'required|integer',
@@ -209,7 +253,7 @@ class MailController extends Controller
     /** POST /webmail/spam — déplace un message vers le Spam. */
     public function spam(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate([
             'folder' => 'required|string|max:128',
             'uid'    => 'required|integer',
@@ -226,7 +270,7 @@ class MailController extends Controller
     /** POST /webmail/seen — marque un message comme lu / non lu. */
     public function seen(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate([
             'folder' => 'required|string|max:128',
             'uid'    => 'required|integer',
@@ -241,7 +285,7 @@ class MailController extends Controller
     }/** POST /webmail/snooze — masque un message jusqu'à une date. */
     public function snooze(Request $request, SnoozeService $snz)
     {
-        $email = (string) $request->session()->get('mail_user');
+        $email = (string) $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate([
             'folder' => 'required|string|max:128',
             'uid'    => 'required|integer',
@@ -254,7 +298,7 @@ class MailController extends Controller
     /** POST /webmail/wake — réveille immédiatement un message snoozé. */
     public function wakeSnoozed(Request $request, SnoozeService $snz)
     {
-        $email = (string) $request->session()->get('mail_user');
+        $email = (string) $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate(['folder' => 'required|string|max:128', 'uid' => 'required|integer']);
         $snz->wake($email, $data['folder'], (int) $data['uid']);
         return back()->with('success', 'Réveillé.');
@@ -264,7 +308,7 @@ class MailController extends Controller
      */
     public function raw(Request $request)
     {
-        $email = (string) $request->session()->get('mail_user');
+        $email = (string) $this->resolveMailbox($request);
         $folder = (string) $request->query('folder', 'INBOX');
         $uid    = (int) $request->query('uid', 0);
         if (! $uid) abort(400);
@@ -335,7 +379,7 @@ HTML;
      */
     public function attachment(Request $request)
     {
-        $email = (string) $request->session()->get('mail_user');
+        $email = (string) $this->resolveMailbox($request);
         $folder = (string) $request->query('folder', 'INBOX');
         $uid    = (int) $request->query('uid', 0);
         $name   = (string) $request->query('name', '');
@@ -363,7 +407,7 @@ HTML;
     /** POST /webmail/star — favori / non-favori. */
     public function star(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate([
             'folder' => 'required|string|max:128',
             'uid'    => 'required|integer',
@@ -380,7 +424,7 @@ HTML;
     /** POST /webmail/label — couleur de label sur un message. */
     public function label(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate([
             'folder' => 'required|string|max:128',
             'uid'    => 'required|integer',
@@ -397,7 +441,7 @@ HTML;
     /** POST /webmail/bulk — applique une action à plusieurs messages. */
     public function bulk(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $data = $request->validate([
             'folder' => 'required|string|max:128',
             'uids'   => 'required|array|min:1|max:200',
@@ -616,12 +660,21 @@ HTML;
             $body = curl_exec($ch);
             $ct   = (string) (curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: 'image/png');
             $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $curlFailed = $body === false;
         } finally {
             curl_close($ch);
         }
 
-        // On se fie au vrai code HTTP, jamais au fait que l'image soit décodable.
-        if ($body === false || $code !== 200) {
+        // Échec technique (timeout, DNS, coupure réseau) : on ne met PAS en
+        // cache, sinon un simple blip réseau blacklisterait le domaine pour
+        // 30 jours. On réessaiera au prochain chargement.
+        if ($curlFailed) {
+            abort(404);
+        }
+
+        // Réponse HTTP bien reçue mais pas d'icône exploitable (404 DDG, ou
+        // 200 avec un corps vide) : absence confirmée, on la met en cache.
+        if ($code !== 200 || $body === '') {
             try { \Illuminate\Support\Facades\Cache::put($cacheKey, 'missing', now()->addDays(30)); } catch (\Throwable $e) {}
             abort(404);
         }
@@ -906,7 +959,7 @@ HTML;
      */
     public function sendReceipt(Request $request, MailQueue $queue)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $name  = (string) $request->session()->get('mail_name', '');
         $data = $request->validate([
             'to'         => 'required|email',
@@ -935,7 +988,7 @@ HTML;
      */
     public function saveDraft(Request $request)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         $name  = (string) $request->session()->get('mail_name', '');
 
         $data = $request->validate([
@@ -970,7 +1023,7 @@ HTML;
      */
     public function inlineImage(Request $request, AttachmentStore $store)
     {
-        $email = $request->session()->get('mail_user');
+        $email = $this->resolveMailbox($request, ['send', 'manage']);
         // On vérifie le type via le MIME réel du fichier — plus tolérant
         // que `mimes:` qui dépend de l'extension du fichier client.
         $request->validate([

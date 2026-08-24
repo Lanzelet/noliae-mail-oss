@@ -1636,6 +1636,12 @@ const asSharedId = computed(() => {
   const v = url.searchParams.get('as') || (typeof props !== 'undefined' ? props.as_shared_id : null);
   return v ? parseInt(v) : null;
 });
+// Ajoute ?as=<id> aux requêtes quand on consulte une boîte partagée — sinon
+// le serveur retombe sur la boîte personnelle (createFolder, trash, move…
+// silencieusement sur le mauvais compte au lieu de la boîte affichée).
+function withAs(params = {}) {
+  return asSharedId.value ? { ...params, as: asSharedId.value } : params;
+}
 const currentIdentity = computed(() => {
   if (asSharedId.value && props.shared_mailboxes?.length) {
     const s = props.shared_mailboxes.find(x => x.id === asSharedId.value);
@@ -1810,13 +1816,13 @@ const isTrashFolder = computed(() => meta(currentFolderName.value).icon === 'tra
 const emptyTrashConfirmOpen = ref(false);
 function confirmEmptyTrash() {
   emptyTrashConfirmOpen.value = false;
-  router.post('/webmail/trash/empty', {}, { preserveScroll: true });
+  router.post('/webmail/trash/empty', withAs(), { preserveScroll: true });
 }
 const isSpamFolder = computed(() => meta(currentFolderName.value).icon === 'spam');
 const emptySpamConfirmOpen = ref(false);
 function confirmEmptySpam() {
   emptySpamConfirmOpen.value = false;
-  router.post('/webmail/spam/empty', {}, { preserveScroll: true });
+  router.post('/webmail/spam/empty', withAs(), { preserveScroll: true });
 }
 // Dedupe : plusieurs dossiers IMAP peuvent mapper au même label "Spam"
 // (Junk, Spam, INBOX.Spam, Junk E-mail…). On garde un seul dossier par label ;
@@ -1995,6 +2001,7 @@ function attachmentUrl(name, inline = false) {
   if (!props.selected) return '';
   const p = new URLSearchParams({ folder: props.folder, uid: props.selected.uid, name });
   if (inline) p.set('inline', '1');
+  if (asSharedId.value) p.set('as', asSharedId.value);
   return '/webmail/attachment?' + p.toString();
 }
 function avatarUrl(hash, name) {
@@ -2017,7 +2024,7 @@ function rootDomainOf(d) {
   if (parts.length <= 2) return d;
   // ccTLD à 2 segments : .co.uk, .com.au, .gouv.fr… on garde 3 parts
   const lastTwo = parts.slice(-2).join('.');
-  const TWO_PART_TLD = new Set(['co.uk','com.au','co.jp','com.br','co.nz','gouv.fr','asso.fr','com.sg','co.kr']);
+  const TWO_PART_TLD = new Set(['co.uk','com.au','co.jp','com.br','co.nz','gouv.fr','asso.fr','com.sg','co.kr','co.il','com.mx','com.tr','co.in','com.cn','or.jp','ne.jp','co.za','com.ar','co.id','com.tw','com.hk','co.th','com.vn','co.ve','com.co','com.pe','gob.mx','org.uk','net.au','gov.uk']);
   return TWO_PART_TLD.has(lastTwo) ? parts.slice(-3).join('.') : parts.slice(-2).join('.');
 }
 function brandLogoUrl(email) {
@@ -2394,11 +2401,11 @@ async function sendReceipt() {
     const r = await fetch('/webmail/receipt', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': xsrf },
-      body: JSON.stringify({
+      body: JSON.stringify(withAs({
         to: props.selected.receipt_to,
         subject: props.selected.subject,
         message_id: props.selected.message_id,
-      }),
+      })),
     });
     if (!r.ok) throw new Error('Erreur');
     receiptSent.value = true;
@@ -2558,14 +2565,14 @@ async function saveDraft() {
     const r = await fetch('/webmail/draft', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-XSRF-TOKEN': xsrf },
-      body: JSON.stringify({
+      body: JSON.stringify(withAs({
         to: compose.value.to.join(', '),
         cc: compose.value.cc.join(', '),
         subject: compose.value.subject,
         body: editorRef.value ? editorRef.value.innerHTML : '',
         in_reply_to: compose.value.in_reply_to,
         prev_uid: draftUid.value,
-      }),
+      })),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Échec');
@@ -2809,6 +2816,7 @@ async function uploadInline(file) {
   }
   const fd = new FormData();
   fd.append('image', file, file.name || 'image.png');
+  if (asSharedId.value) fd.append('as', asSharedId.value);
   const xsrf = decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
   const r = await fetch('/webmail/inline-image', {
     method: 'POST', credentials: 'same-origin',
@@ -3039,7 +3047,8 @@ const isMeRecipient = computed(() => {
 watch(() => props.selected?.uid, () => { senderDetailsExpanded.value = false; });
 function showRaw() {
   if (!props.selected) return;
-  const url = '/webmail/raw?folder=' + encodeURIComponent(props.folder) + '&uid=' + props.selected.uid;
+  const url = '/webmail/raw?folder=' + encodeURIComponent(props.folder) + '&uid=' + props.selected.uid
+    + (asSharedId.value ? '&as=' + asSharedId.value : '');
   window.open(url, '_blank', 'width=1100,height=800');
 }
 function printMail() {
@@ -3110,7 +3119,7 @@ function snoozeNow(hours) {
   else { // special tokens — use simple defaults
     until = new Date(d); until.setHours(18, 0, 0, 0); if (d.getHours() >= 18) until.setDate(d.getDate() + 1);
   }
-  router.post('/webmail/snooze', { folder: props.folder, uid: props.selected.uid, until: until.toISOString() },
+  router.post('/webmail/snooze', withAs({ folder: props.folder, uid: props.selected.uid, until: until.toISOString() }),
     { preserveScroll: true });
   snoozeOpen.value = false;
 }
@@ -3304,7 +3313,7 @@ onUnmounted(() => {
 const searchInput = ref(props.search || '');
 let searchDebounce = null;
 function runSearch() {
-  router.get('/webmail', { folder: props.folder, q: searchInput.value.trim() || undefined },
+  router.get('/webmail', withAs({ folder: props.folder, q: searchInput.value.trim() || undefined }),
     { preserveState: false });
 }
 // debounce live search after 600 ms
@@ -3314,7 +3323,7 @@ watch(searchInput, (v) => {
 });
 function openFolder(path) {
   moveOpen.value = false; drawerOpen.value = false;
-  router.get('/webmail', { folder: path }, { preserveState: false });
+  router.get('/webmail', withAs({ folder: path }), { preserveState: false });
 }
 // ── Pagination ──
 const totalPages = computed(() => Math.max(1, Math.ceil((props.total || 0) / (props.per_page || 40))));
@@ -3330,29 +3339,29 @@ function gotoPage(p) {
   const cap = props.total > 0 ? totalPages.value : 99999;
   const next = Math.min(cap, Math.max(1, p));
   if (next === props.page) return;
-  router.get('/webmail', {
+  router.get('/webmail', withAs({
     folder: props.folder,
     q: props.search || undefined,
     page: next,
     per_page: props.per_page !== 40 ? props.per_page : undefined,
-  }, { preserveState: false, preserveScroll: false });
+  }), { preserveState: false, preserveScroll: false });
 }
 function openMessage(uid) {
   moveOpen.value = false; drawerOpen.value = false;
-  router.get('/webmail', {
+  router.get('/webmail', withAs({
     folder: props.folder, uid,
     page: props.page > 1 ? props.page : undefined,
     per_page: props.per_page !== 40 ? props.per_page : undefined,
     q: props.search || undefined,
-  }, { preserveScroll: true, preserveState: true });
+  }), { preserveScroll: true, preserveState: true });
 }
 function backToList() {
-  router.get('/webmail', {
+  router.get('/webmail', withAs({
     folder: props.folder,
     page: props.page > 1 ? props.page : undefined,
     per_page: props.per_page !== 40 ? props.per_page : undefined,
     q: props.search || undefined,
-  }, { preserveScroll: true, preserveState: true });
+  }), { preserveScroll: true, preserveState: true });
 }
 
 /* ── Gestion des dossiers ── */
@@ -3364,7 +3373,7 @@ function delFolder(f) {
 function confirmDeleteFolder() {
   if (!deleteFolderTarget.value) return;
   router.delete('/webmail/folders', {
-    data: { path: deleteFolderTarget.value.path },
+    data: withAs({ path: deleteFolderTarget.value.path }),
     onFinish: () => { deleteFolderTarget.value = null; },
   });
 }
@@ -3378,7 +3387,7 @@ function openNewSubfolder(f) {
 function submitNewSubfolder() {
   const name = newSubfolderName.value.trim();
   if (!name || !newSubfolderParent.value) return;
-  router.post('/webmail/folders', { name, parent: newSubfolderParent.value.path }, {
+  router.post('/webmail/folders', withAs({ name, parent: newSubfolderParent.value.path }), {
     preserveScroll: true,
     onSuccess: () => { newSubfolderParent.value = null; },
   });
@@ -3386,27 +3395,27 @@ function submitNewSubfolder() {
 function doMove(target) {
   moveOpen.value = false;
   if (!props.selected) return;
-  router.post('/webmail/move', { folder: props.folder, uid: props.selected.uid, target },
+  router.post('/webmail/move', withAs({ folder: props.folder, uid: props.selected.uid, target }),
     { preserveScroll: true });
 }
 function doArchive() {
   if (!props.selected) return;
-  router.post('/webmail/archive', { folder: props.folder, uid: props.selected.uid });
+  router.post('/webmail/archive', withAs({ folder: props.folder, uid: props.selected.uid }));
 }
 function doSpam() {
   if (!props.selected) return;
-  router.post('/webmail/spam', { folder: props.folder, uid: props.selected.uid });
+  router.post('/webmail/spam', withAs({ folder: props.folder, uid: props.selected.uid }));
 }
 function doDelete() {
   if (!props.selected) return;
   const isTrash = meta(currentFolderName.value).icon === 'trash';
   if (isTrash && !confirm('Supprimer définitivement ce message ?')) return;
-  router.post('/webmail/trash', { folder: props.folder, uid: props.selected.uid });
+  router.post('/webmail/trash', withAs({ folder: props.folder, uid: props.selected.uid }));
 }
 function toggleSeen() {
   if (!props.selected) return;
   router.post('/webmail/seen',
-    { folder: props.folder, uid: props.selected.uid, seen: false },
+    withAs({ folder: props.folder, uid: props.selected.uid, seen: false }),
     { preserveScroll: true });
 }
 
@@ -3480,23 +3489,24 @@ const ctxItems = computed(() => {
       action: () => { searchInput.value = 'from:' + (m.from_mail || m.from); runSearch(); } },
     { label: 'Ouvrir dans une nouvelle fenêtre',
       icon: ic('M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25'),
-      action: () => window.open('/webmail?folder=' + encodeURIComponent(props.folder) + '&uid=' + m.uid, '_blank') },
+      action: () => window.open('/webmail?folder=' + encodeURIComponent(props.folder) + '&uid=' + m.uid
+        + (asSharedId.value ? '&as=' + asSharedId.value : ''), '_blank') },
   ].filter((i) => !i.sep);
 });
 function replyAll() { reply(); /* Note : tous les destinataires ne sont pas connus côté client. Reply pour l'instant */ }
 
 function quickArchive(m) {
-  router.post('/webmail/archive', { folder: props.folder, uid: m.uid }, { preserveScroll: true });
+  router.post('/webmail/archive', withAs({ folder: props.folder, uid: m.uid }), { preserveScroll: true });
 }
 function quickTrash(m) {
-  router.post('/webmail/trash', { folder: props.folder, uid: m.uid }, { preserveScroll: true });
+  router.post('/webmail/trash', withAs({ folder: props.folder, uid: m.uid }), { preserveScroll: true });
 }
 function quickSeen(m) {
-  router.post('/webmail/seen', { folder: props.folder, uid: m.uid, seen: !m.seen }, { preserveScroll: true });
+  router.post('/webmail/seen', withAs({ folder: props.folder, uid: m.uid, seen: !m.seen }), { preserveScroll: true });
 }
 function toggleStar(m) {
   m.starred = !m.starred; // optimistic
-  router.post('/webmail/star', { folder: props.folder, uid: m.uid, on: m.starred },
+  router.post('/webmail/star', withAs({ folder: props.folder, uid: m.uid, on: m.starred }),
     { preserveScroll: true, preserveState: true });
 }
 function cycleLabel(m) {
@@ -3504,7 +3514,7 @@ function cycleLabel(m) {
   const i = m.label ? LABEL_LIST.indexOf(m.label) : -1;
   const next = i >= LABEL_LIST.length - 1 ? null : LABEL_LIST[i + 1];
   m.label = next;
-  router.post('/webmail/label', { folder: props.folder, uid: m.uid, color: next },
+  router.post('/webmail/label', withAs({ folder: props.folder, uid: m.uid, color: next }),
     { preserveScroll: true, preserveState: true });
 }
 const displayedMessages = computed(() => {
@@ -3524,12 +3534,12 @@ const tabCounts = computed(() => {
 
 function bulk(action, target) {
   if (!selectedUids.value.length) return;
-  router.post('/webmail/bulk', {
+  router.post('/webmail/bulk', withAs({
     folder: props.folder,
     uids: selectedUids.value,
     action,
     target: target || null,
-  }, { preserveScroll: true, onSuccess: () => clearSel() });
+  }), { preserveScroll: true, onSuccess: () => clearSel() });
 }
 watch(() => props.folder, () => clearSel());
 
@@ -3574,8 +3584,24 @@ onMounted(() => {
   pollTimer = setInterval(() => {
     // On ne rafraîchit pas si l'onglet est masqué ou si on est en train d'écrire.
     if (document.visibilityState !== 'visible' || composing.value) return;
-    router.reload({ only: ['messages'], preserveState: true, preserveScroll: true });
-  }, 15000);
+    // On reconstruit l'URL explicitement (dossier, page, recherche, boîte
+    // partagée) au lieu de laisser router.reload() se fier à window.location.href :
+    // si cette dernière se désynchronise (ex. après ouverture d'un message dans
+    // une boîte partagée), le sondage la reconfirmait en boucle sans jamais
+    // remonter le bon contenu (uid/as perdus silencieusement).
+    // Inertia REMPLACE les props (pas de fusion) : un reload only:['messages']
+    // pendant qu'un message est ouvert efface silencieusement `selected` au
+    // bout de 60s puisqu'il n'est pas dans la réponse partielle. On l'inclut
+    // donc explicitement tant qu'un message est affiché.
+    const only = props.selected ? ['messages', 'selected'] : ['messages'];
+    router.get('/webmail', withAs({
+      folder: props.folder,
+      uid: props.selected?.uid,
+      page: props.page > 1 ? props.page : undefined,
+      per_page: props.per_page !== 40 ? props.per_page : undefined,
+      q: props.search || undefined,
+    }), { only, preserveState: true, preserveScroll: true, replace: true });
+  }, 60000);
 });
 onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
