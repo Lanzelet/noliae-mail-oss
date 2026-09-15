@@ -214,6 +214,90 @@ class MailboxService
      * Décode un header MIME RFC 2047 (=?UTF-8?Q?...?= ou =?...?B?...?=).
      * Tolère les chaînes déjà décodées et les encodages exotiques.
      */
+    /**
+     * Reparse récursivement un message RFC822 brut pour en extraire les corps
+     * text/plain et text/html. Sert de filet de sécurité quand webklex/php-imap
+     * (Structure::parsePart) échoue à redescendre dans un multipart imbriqué
+     * n'ayant qu'une seule sous-partie (ex: multipart/related{text/html} sans
+     * image inline) : dans ce cas la lib renvoie le bloc encore encodé sous le
+     * mauvais sous-type au lieu de le décoder, et les deux corps sortent vides.
+     *
+     * @return array{html: string, text: string}
+     */
+    private static function parseRawMimeBody(string $raw): array
+    {
+        [$headers, $body] = self::splitHeadersBody($raw);
+        $out = ['html' => '', 'text' => ''];
+        self::walkMimePart($headers, $body, $out, 0);
+        return $out;
+    }
+
+    /** Sépare les en-têtes (dépliés) du corps d'un bloc MIME. */
+    private static function splitHeadersBody(string $block): array
+    {
+        $block = ltrim($block, "\r\n");
+        $sep = strpos($block, "\r\n\r\n");
+        $sepLen = 4;
+        if ($sep === false) {
+            $sep = strpos($block, "\n\n");
+            $sepLen = 2;
+        }
+        if ($sep === false) return [$block, ''];
+        $rawHeaders = substr($block, 0, $sep);
+        $body = substr($block, $sep + $sepLen);
+        // Dépliage RFC 2822 (continuation lines commençant par espace/tab)
+        $rawHeaders = preg_replace("/\r?\n[ \t]+/", ' ', $rawHeaders);
+        $headers = [];
+        foreach (preg_split("/\r?\n/", $rawHeaders) as $line) {
+            if (preg_match('/^([^:]+):\s*(.*)$/', $line, $mm)) {
+                $headers[strtolower(trim($mm[1]))] = trim($mm[2]);
+            }
+        }
+        return [$headers, $body];
+    }
+
+    /** Parcourt un bloc MIME (potentiellement multipart) et alimente $out['html'|'text']. */
+    private static function walkMimePart(array $headers, string $body, array &$out, int $depth): void
+    {
+        if ($depth > 8) return; // garde-fou anti-boucle sur structure malformée
+        $ctype = $headers['content-type'] ?? 'text/plain';
+        $disposition = strtolower($headers['content-disposition'] ?? '');
+        if (str_contains($disposition, 'attachment')) return;
+
+        if (preg_match('/boundary\s*=\s*"?([^";]+)"?/i', $ctype, $bm)) {
+            $boundary = trim($bm[1]);
+            $segments = preg_split('/\r?\n--' . preg_quote($boundary, '/') . '(--)?\r?\n?/', $body);
+            foreach ($segments as $seg) {
+                $seg = trim($seg, "\r\n");
+                if ($seg === '' || $seg === '--') continue;
+                [$h, $b] = self::splitHeadersBody($seg);
+                self::walkMimePart($h, $b, $out, $depth + 1);
+            }
+            return;
+        }
+
+        $isHtml = stripos($ctype, 'text/html') !== false;
+        $isText = stripos($ctype, 'text/plain') !== false;
+        if (! $isHtml && ! $isText) return;
+
+        $encoding = strtolower($headers['content-transfer-encoding'] ?? '');
+        $content = match ($encoding) {
+            'quoted-printable' => quoted_printable_decode($body),
+            'base64'           => base64_decode(preg_replace('/\s+/', '', $body)) ?: '',
+            default            => $body,
+        };
+        if (preg_match('/charset\s*=\s*"?([\w-]+)"?/i', $ctype, $cm)) {
+            $charset = strtoupper(trim($cm[1]));
+            if ($charset !== '' && $charset !== 'UTF-8' && $charset !== 'US-ASCII') {
+                $converted = @iconv($charset, 'UTF-8//IGNORE', $content);
+                if ($converted !== false) $content = $converted;
+            }
+        }
+
+        $key = $isHtml ? 'html' : 'text';
+        if ($out[$key] === '') $out[$key] = $content;
+    }
+
     private function mimeDecode(string $s): string
     {
         if ($s === '' || strpos($s, '=?') === false) return $s;
@@ -768,6 +852,26 @@ class MailboxService
         } catch (\Throwable $e) {
         }
 
+        $html = $m->getHTMLBody() ?: '';
+        $text = $m->getTextBody() ?: '';
+        // Webklex ne redescend pas dans un multipart imbriqué qui n'a qu'une
+        // seule sous-partie (ex : multipart/related contenant juste le HTML,
+        // sans image inline — pattern "CTYPE_MIXED_BOGUS" détecté par rspamd,
+        // fréquent chez certains émetteurs institutionnels type impots.gouv.fr).
+        // Dans ce cas les deux corps ressortent vides : on reparse le brut nous-mêmes.
+        if (trim($html) === '' && trim($text) === '') {
+            $raw = '';
+            try {
+                $hdrs = (string) ($m->getHeader()?->raw ?? '');
+                $raw = trim($hdrs) . "\r\n\r\n" . (string) $m->getRawBody();
+            } catch (\Throwable $e) {}
+            if (trim($raw) !== '') {
+                $fallback = self::parseRawMimeBody($raw);
+                $html = $fallback['html'] ?? '';
+                $text = $fallback['text'] ?? '';
+            }
+        }
+
         $data = [
             'uid'         => (int) $m->getUid(),
             'message_id'  => $messageId,
@@ -777,10 +881,10 @@ class MailboxService
             'from_hash'   => $from['mail'] ? md5(strtolower(trim($from['mail']))) : '',
             'to'          => implode(', ', $to),
             'date'        => $this->dateOf($m),
-            'html'        => self::rewriteMailHtml($m->getHTMLBody() ?: null),
+            'html'        => self::rewriteMailHtml($html ?: null),
             'receipt_to'  => $receiptTo,
             'auth'        => $auth,
-            'text'        => $m->getTextBody() ?: null,
+            'text'        => $text ?: null,
             'attachments' => $attachments,
         ];
         try {
